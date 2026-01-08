@@ -540,7 +540,7 @@ class ControlEgresados {
                             border-bottom: 3px solid #3498db;
                         }
                         .header h1 {
-                            color: #2c3e50;
+                            color: #26b33bff;
                             margin: 0 0 10px 0;
                             font-size: 24px;
                         }
@@ -554,7 +554,7 @@ class ControlEgresados {
                             margin-bottom: 25px;
                         }
                         .section-title {
-                            background: #2c3e50;
+                            background: #26b33bff;
                             color: white;
                             padding: 10px 15px;
                             border-radius: 5px;
@@ -618,7 +618,7 @@ class ControlEgresados {
                 <body>
                     <div class="container">
                         <div class="header">
-                            <h1>UNIVERSIDAD MANUELA BELTRÁN</h1>
+                            <h1>UNIVERSIDAD MEXIQUENSE DEL BICENTENARIO</h1>
                             <h2>Sistema de Control de Egresados</h2>
                             <p style="color: #7f8c8d; margin-top: 10px;">
                                 Ficha de Egresado - Generada el ${fecha}
@@ -690,7 +690,7 @@ class ControlEgresados {
                         </div>
                         
                         <div class="footer">
-                            <p>© ${new Date().getFullYear()} Universidad Manuela Beltrán</p>
+                            <p>© ${new Date().getFullYear()} Universidad Mexiquense del Bicentenario</p>
                             <p>Este documento es generado automáticamente por el Sistema de Control de Egresados</p>
                             <p>Documento válido únicamente para fines administrativos</p>
                         </div>
@@ -698,7 +698,7 @@ class ControlEgresados {
                     
                     <div class="no-print" style="text-align: center; margin-top: 20px;">
                         <button onclick="window.print()" style="
-                            background: #3498db;
+                            background: #28bc66ff;
                             color: white;
                             border: none;
                             padding: 10px 20px;
