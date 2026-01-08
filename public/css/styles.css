@@ -1164,3 +1164,38 @@ body:not(.modal-open) .modal-overlay.active {
         display: none !important;
     }
 }
+
+/* ===== CORRECCIÓN PARA EL MODAL ===== */
+#delete-modal {
+    display: none; /* Esto es lo más importante */
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+#delete-modal .modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    max-width: 400px;
+    width: 90%;
+    text-align: center;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+}
+
+/* Clase para mostrar el modal */
+#delete-modal.active {
+    display: flex;
+    animation: fadeIn 0.3s ease;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
