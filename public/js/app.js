@@ -1,7 +1,7 @@
 class ControlEgresados {
     constructor() {
         this.API_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:3000/api/egresados' 
+            ? 'https://api-egresados.onrender.com/api/egresados' 
             : '/api/egresados';
         
         this.egresadoIdToDelete = null;
