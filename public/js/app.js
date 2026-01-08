@@ -6,11 +6,17 @@ class ControlEgresados {
         
         this.egresadoIdToDelete = null;
         this.currentEditId = null;
+        this.lastSearchTerm = '';
+        this.filteredEgresados = [];
+        this.allEgresados = [];
         
         this.init();
     }
     
     init() {
+        // Asegurar que el modal esté oculto al inicio
+        this.ocultarModalEliminar();
+        
         this.cargarEgresados();
         this.setupEventListeners();
         
@@ -33,10 +39,10 @@ class ControlEgresados {
                 throw new Error(`Error HTTP: ${response.status}`);
             }
             
-            const egresados = await response.json();
+            this.allEgresados = await response.json();
             
-            this.renderizarEgresados(egresados);
-            this.actualizarEstadisticas(egresados.length);
+            this.renderizarEgresados(this.allEgresados);
+            this.actualizarEstadisticas(this.allEgresados.length);
             
         } catch (error) {
             console.error('Error cargando egresados:', error);
@@ -72,6 +78,11 @@ class ControlEgresados {
                         <button class="btn btn-delete" data-id="${egresado._id}">
                             <i class="fas fa-trash"></i> Eliminar
                         </button>
+                        <button class="btn btn-pdf" data-id="${egresado._id}" 
+                                data-nombre="${egresado.nombre}" 
+                                data-apellido="${egresado.apellido}">
+                            <i class="fas fa-file-pdf"></i> PDF
+                        </button>
                     </div>
                 </td>
             </tr>
@@ -95,6 +106,16 @@ class ControlEgresados {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.getAttribute('data-id');
                 this.mostrarModalEliminar(id);
+            });
+        });
+        
+        // Botones de PDF
+        document.querySelectorAll('.btn-pdf').forEach(btn => {
+            btn.addEventListener('click', async (e) => {
+                const id = e.currentTarget.getAttribute('data-id');
+                const nombre = e.currentTarget.getAttribute('data-nombre');
+                const apellido = e.currentTarget.getAttribute('data-apellido');
+                await this.generarPDFIndividual(id, nombre, apellido);
             });
         });
     }
@@ -346,6 +367,398 @@ class ControlEgresados {
         }, 3000);
     }
     
+    buscarEgresados(termino) {
+        const filas = document.querySelectorAll('#egresados-body tr');
+        const busqueda = termino.toLowerCase().trim();
+        this.lastSearchTerm = busqueda;
+        this.filteredEgresados = [];
+        
+        if (!busqueda) {
+            filas.forEach(fila => {
+                fila.style.display = '';
+            });
+            // Ocultar botón de exportar filtrados
+            const exportFilteredBtn = document.getElementById('export-filtered-btn');
+            if (exportFilteredBtn) {
+                exportFilteredBtn.style.display = 'none';
+            }
+            // Restaurar contador total
+            this.actualizarEstadisticas(this.allEgresados.length);
+            return;
+        }
+        
+        let encontrados = 0;
+        filas.forEach(fila => {
+            const textoFila = fila.textContent.toLowerCase();
+            if (textoFila.includes(busqueda)) {
+                fila.style.display = '';
+                encontrados++;
+                
+                // Guardar datos del egresado filtrado
+                const id = fila.getAttribute('data-id');
+                const celdas = fila.querySelectorAll('td');
+                if (celdas.length >= 4) {
+                    const egresado = this.allEgresados.find(e => e._id === id);
+                    if (egresado) {
+                        this.filteredEgresados.push(egresado);
+                    }
+                }
+            } else {
+                fila.style.display = 'none';
+            }
+        });
+        
+        // Mostrar/ocultar botón de exportar filtrados
+        const exportFilteredBtn = document.getElementById('export-filtered-btn');
+        if (exportFilteredBtn) {
+            if (encontrados > 0) {
+                exportFilteredBtn.style.display = 'inline-flex';
+                exportFilteredBtn.innerHTML = `<i class="fas fa-filter"></i> Exportar Filtrados (${encontrados})`;
+            } else {
+                exportFilteredBtn.style.display = 'none';
+            }
+        }
+        
+        // Actualizar contador de búsqueda
+        const stats = document.getElementById('total-egresados');
+        if (stats && busqueda) {
+            stats.textContent = `Encontrados: ${encontrados} de ${this.allEgresados.length}`;
+        }
+    }
+    
+    // ===== MÉTODOS DE EXPORTACIÓN =====
+    
+    // 1. Exportar TODOS los egresados (CSV)
+    async exportarTodosCSV() {
+        try {
+            this.mostrarLoading(true);
+            
+            if (!this.allEgresados || this.allEgresados.length === 0) {
+                this.mostrarNotificacion('No hay datos para exportar', 'error');
+                return;
+            }
+            
+            // Crear CSV
+            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            
+            this.allEgresados.forEach(egresado => {
+                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
+                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}",`;
+                csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
+            });
+            
+            // Descargar archivo
+            this.descargarCSV(csv, 'todos_egresados');
+            this.mostrarNotificacion(`${this.allEgresados.length} egresados exportados correctamente`, 'success');
+            
+        } catch (error) {
+            console.error('Error exportando datos:', error);
+            this.mostrarNotificacion('Error al exportar datos', 'error');
+        } finally {
+            this.mostrarLoading(false);
+        }
+    }
+    
+    // 2. Exportar solo los egresados FILTRADOS (CSV)
+    async exportarFiltradosCSV() {
+        if (this.filteredEgresados.length === 0) {
+            this.mostrarNotificacion('No hay egresados filtrados para exportar', 'warning');
+            return;
+        }
+        
+        try {
+            this.mostrarLoading(true);
+            
+            // Crear CSV con datos filtrados
+            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            
+            this.filteredEgresados.forEach(egresado => {
+                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
+                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}",`;
+                csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
+            });
+            
+            // Descargar archivo
+            const termino = this.lastSearchTerm.replace(/[^a-z0-9]/gi, '_').substring(0, 20);
+            this.descargarCSV(csv, `filtrados_${termino || 'busqueda'}`);
+            this.mostrarNotificacion(`${this.filteredEgresados.length} egresados filtrados exportados`, 'success');
+            
+        } catch (error) {
+            console.error('Error exportando filtrados:', error);
+            this.mostrarNotificacion('Error al exportar filtrados', 'error');
+        } finally {
+            this.mostrarLoading(false);
+        }
+    }
+    
+    // 3. Exportar PDF INDIVIDUAL
+    async generarPDFIndividual(id, nombre, apellido) {
+        try {
+            this.mostrarLoading(true);
+            
+            // Obtener datos del egresado
+            const response = await fetch(`${this.API_URL}/${id}`);
+            if (!response.ok) throw new Error('Error al obtener datos del egresado');
+            
+            const egresado = await response.json();
+            
+            // Crear contenido HTML para el PDF
+            const fecha = new Date().toLocaleDateString('es-ES', {
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+            
+            const contenidoHTML = `
+                <!DOCTYPE html>
+                <html lang="es">
+                <head>
+                    <meta charset="UTF-8">
+                    <title>Ficha de Egresado - ${egresado.nombre} ${egresado.apellido}</title>
+                    <style>
+                        body { 
+                            font-family: 'Segoe UI', Arial, sans-serif; 
+                            margin: 0;
+                            padding: 20px;
+                            color: #333;
+                            line-height: 1.6;
+                        }
+                        .container {
+                            max-width: 800px;
+                            margin: 0 auto;
+                            border: 2px solid #2c3e50;
+                            border-radius: 10px;
+                            padding: 30px;
+                            background: white;
+                        }
+                        .header {
+                            text-align: center;
+                            margin-bottom: 30px;
+                            padding-bottom: 20px;
+                            border-bottom: 3px solid #3498db;
+                        }
+                        .header h1 {
+                            color: #2c3e50;
+                            margin: 0 0 10px 0;
+                            font-size: 24px;
+                        }
+                        .header h2 {
+                            color: #3498db;
+                            margin: 0;
+                            font-size: 20px;
+                            font-weight: normal;
+                        }
+                        .section {
+                            margin-bottom: 25px;
+                        }
+                        .section-title {
+                            background: #2c3e50;
+                            color: white;
+                            padding: 10px 15px;
+                            border-radius: 5px;
+                            margin-bottom: 15px;
+                            font-size: 16px;
+                            font-weight: bold;
+                        }
+                        .info-grid {
+                            display: grid;
+                            grid-template-columns: 1fr 2fr;
+                            gap: 10px;
+                        }
+                        .info-item {
+                            margin-bottom: 12px;
+                        }
+                        .label {
+                            font-weight: bold;
+                            color: #555;
+                        }
+                        .value {
+                            color: #333;
+                        }
+                        .footer {
+                            margin-top: 40px;
+                            text-align: center;
+                            color: #7f8c8d;
+                            font-size: 12px;
+                            border-top: 1px solid #eee;
+                            padding-top: 20px;
+                        }
+                        .qr-placeholder {
+                            text-align: center;
+                            margin: 30px 0;
+                            padding: 20px;
+                            background: #f8f9fa;
+                            border-radius: 8px;
+                            border: 1px dashed #ddd;
+                        }
+                        .id-verification {
+                            font-family: monospace;
+                            background: #f8f9fa;
+                            padding: 8px 12px;
+                            border-radius: 4px;
+                            display: inline-block;
+                            margin-top: 10px;
+                            font-size: 12px;
+                        }
+                        @media print {
+                            body { 
+                                padding: 0; 
+                                font-size: 11pt;
+                            }
+                            .container {
+                                border: none;
+                                padding: 15px;
+                            }
+                            .no-print { display: none !important; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header">
+                            <h1>UNIVERSIDAD MANUELA BELTRÁN</h1>
+                            <h2>Sistema de Control de Egresados</h2>
+                            <p style="color: #7f8c8d; margin-top: 10px;">
+                                Ficha de Egresado - Generada el ${fecha}
+                            </p>
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">INFORMACIÓN PERSONAL</div>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="label">Nombre completo:</div>
+                                    <div class="value">${egresado.nombre} ${egresado.apellido}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label">Cédula:</div>
+                                    <div class="value">${egresado.cedula}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label">Correo electrónico:</div>
+                                    <div class="value">${egresado.correo}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label">Teléfono:</div>
+                                    <div class="value">${egresado.telefono || 'No registrado'}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">INFORMACIÓN ACADÉMICA</div>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="label">Carrera:</div>
+                                    <div class="value">${egresado.carrera}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label">Año de graduación:</div>
+                                    <div class="value">${egresado.anoGraduacion}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label">Fecha de registro:</div>
+                                    <div class="value">${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="section">
+                            <div class="section-title">INFORMACIÓN LABORAL</div>
+                            <div class="info-grid">
+                                <div class="info-item">
+                                    <div class="label">Empresa actual:</div>
+                                    <div class="value">${egresado.empresaActual || 'No registrada'}</div>
+                                </div>
+                                <div class="info-item">
+                                    <div class="label">Puesto:</div>
+                                    <div class="value">${egresado.puesto || 'No registrado'}</div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <div class="qr-placeholder">
+                            <p style="margin: 0; color: #666;">
+                                <strong>Código de verificación del egresado:</strong>
+                            </p>
+                            <div class="id-verification">ID: ${egresado._id}</div>
+                            <p style="margin-top: 15px; font-size: 11px; color: #888;">
+                                Este código puede ser utilizado para verificar la autenticidad de este documento
+                            </p>
+                        </div>
+                        
+                        <div class="footer">
+                            <p>© ${new Date().getFullYear()} Universidad Manuela Beltrán</p>
+                            <p>Este documento es generado automáticamente por el Sistema de Control de Egresados</p>
+                            <p>Documento válido únicamente para fines administrativos</p>
+                        </div>
+                    </div>
+                    
+                    <div class="no-print" style="text-align: center; margin-top: 20px;">
+                        <button onclick="window.print()" style="
+                            background: #3498db;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 14px;
+                        ">
+                            📄 Imprimir / Guardar como PDF
+                        </button>
+                        <button onclick="window.close()" style="
+                            background: #e74c3c;
+                            color: white;
+                            border: none;
+                            padding: 10px 20px;
+                            border-radius: 5px;
+                            cursor: pointer;
+                            font-size: 14px;
+                            margin-left: 10px;
+                        ">
+                            ✕ Cerrar
+                        </button>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            // Abrir en nueva ventana para imprimir
+            this.abrirVentanaPDF(contenidoHTML, `${egresado.nombre}_${egresado.apellido}`);
+            
+        } catch (error) {
+            console.error('Error generando PDF:', error);
+            this.mostrarNotificacion('Error al generar PDF', 'error');
+        } finally {
+            this.mostrarLoading(false);
+        }
+    }
+    
+    abrirVentanaPDF(contenidoHTML, nombreArchivo) {
+        const ventana = window.open('', '_blank');
+        ventana.document.write(contenidoHTML);
+        ventana.document.close();
+        
+        // Guardar el nombre para referencia
+        ventana.archivoNombre = nombreArchivo;
+        
+        this.mostrarNotificacion('PDF generado. Puede imprimirlo o guardarlo como PDF.', 'info');
+    }
+    
+    descargarCSV(csv, nombreBase) {
+        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.setAttribute('download', `${nombreBase}_${new Date().toISOString().split('T')[0]}.csv`);
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+    }
+    
     setupEventListeners() {
         // Formulario
         const form = document.getElementById('egresado-form');
@@ -386,87 +799,22 @@ class ControlEgresados {
             });
         }
         
-        // Botón exportar
-        const exportBtn = document.getElementById('export-btn');
-        if (exportBtn) {
-            exportBtn.addEventListener('click', () => this.exportarDatos());
-        }
-    }
-    
-    buscarEgresados(termino) {
-        const filas = document.querySelectorAll('#egresados-body tr');
-        const busqueda = termino.toLowerCase().trim();
-        
-        if (!busqueda) {
-            filas.forEach(fila => {
-                fila.style.display = '';
-            });
-            return;
-        }
-        
-        let encontrados = 0;
-        filas.forEach(fila => {
-            const textoFila = fila.textContent.toLowerCase();
-            if (textoFila.includes(busqueda)) {
-                fila.style.display = '';
-                encontrados++;
-            } else {
-                fila.style.display = 'none';
-            }
-        });
-        
-        // Actualizar contador de búsqueda
-        if (busqueda) {
-            const stats = document.getElementById('total-egresados');
-            if (stats) {
-                const total = document.querySelectorAll('#egresados-body tr').length;
-                stats.textContent = `Encontrados: ${encontrados} de ${total}`;
+        // Botón exportar TODOS
+        const exportAllBtn = document.getElementById('export-all-btn');
+        if (exportAllBtn) {
+            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
+        } else {
+            // Si no existe el botón específico, usar el genérico
+            const exportBtn = document.getElementById('export-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
             }
         }
-    }
-    
-    async exportarDatos() {
-        try {
-            this.mostrarLoading(true);
-            const response = await fetch(this.API_URL);
-            
-            if (!response.ok) {
-                throw new Error('Error al obtener datos para exportar');
-            }
-            
-            const egresados = await response.json();
-            
-            if (!egresados || egresados.length === 0) {
-                this.mostrarNotificacion('No hay datos para exportar', 'error');
-                return;
-            }
-            
-            // Crear CSV
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto\n';
-            
-            egresados.forEach(egresado => {
-                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}"\n`;
-            });
-            
-            // Descargar archivo
-            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-            const url = URL.createObjectURL(blob);
-            const link = document.createElement('a');
-            link.href = url;
-            link.setAttribute('download', `egresados_${new Date().toISOString().split('T')[0]}.csv`);
-            document.body.appendChild(link);
-            link.click();
-            document.body.removeChild(link);
-            URL.revokeObjectURL(url);
-            
-            this.mostrarNotificacion('Datos exportados correctamente', 'success');
-            
-        } catch (error) {
-            console.error('Error exportando datos:', error);
-            this.mostrarNotificacion('Error al exportar datos', 'error');
-        } finally {
-            this.mostrarLoading(false);
+        
+        // Botón exportar FILTRADOS
+        const exportFilteredBtn = document.getElementById('export-filtered-btn');
+        if (exportFilteredBtn) {
+            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
         }
     }
     
@@ -497,4 +845,38 @@ class ControlEgresados {
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ControlEgresados();
+    
+    // Si no existen los botones específicos de exportación, crearlos
+    const stats = document.querySelector('.stats');
+    if (stats && !document.getElementById('export-all-btn')) {
+        // Crear contenedor de botones de exportación
+        const exportButtons = document.createElement('div');
+        exportButtons.className = 'export-buttons';
+        
+        // Botón exportar todos
+        const exportAllBtn = document.createElement('button');
+        exportAllBtn.id = 'export-all-btn';
+        exportAllBtn.className = 'btn btn-primary';
+        exportAllBtn.innerHTML = '<i class="fas fa-download"></i> Exportar Todos (CSV)';
+        exportAllBtn.onclick = () => window.app.exportarTodosCSV();
+        
+        // Botón exportar filtrados (inicialmente oculto)
+        const exportFilteredBtn = document.createElement('button');
+        exportFilteredBtn.id = 'export-filtered-btn';
+        exportFilteredBtn.className = 'btn btn-secondary';
+        exportFilteredBtn.style.display = 'none';
+        exportFilteredBtn.innerHTML = '<i class="fas fa-filter"></i> Exportar Filtrados';
+        exportFilteredBtn.onclick = () => window.app.exportarFiltradosCSV();
+        
+        exportButtons.appendChild(exportAllBtn);
+        exportButtons.appendChild(exportFilteredBtn);
+        
+        // Reemplazar el botón simple si existe
+        const oldExportBtn = document.getElementById('export-btn');
+        if (oldExportBtn) {
+            oldExportBtn.replaceWith(exportButtons);
+        } else {
+            stats.appendChild(exportButtons);
+        }
+    }
 });
