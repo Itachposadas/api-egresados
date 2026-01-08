@@ -24,8 +24,23 @@ app.use('/api/egresados', egresadosRoutes);
 
 // Ruta para SPA (Single Page Application)
 // Esta ruta DEBE ir al final para capturar todas las rutas no definidas
-app.get('*', (req, res) => {
-  res.sendFile(path.join(__dirname, '../public/index.html'));
+// En tu server.js, modifica las rutas:
+
+app.get('/', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/index.html'));
+});
+
+app.get('/login', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/login.html'));
+});
+
+app.get('/dashboard', (req, res) => {
+    res.sendFile(path.join(__dirname, '../public/dashboard.html'));
+});
+
+// Redireccionar /app a /dashboard
+app.get('/app', (req, res) => {
+    res.redirect('/dashboard');
 });
 
 const PORT = process.env.PORT || 10000; // Render usa puerto 10000
