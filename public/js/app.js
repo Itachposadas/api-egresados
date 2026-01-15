@@ -3,7 +3,7 @@ class ControlEgresados {
         // Ajusta esta URL según tu backend en Render
         this.API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:5000/api/egresados' 
-            : 'https://tu-backend-en-render.onrender.com/api/egresados'; // CAMBIA ESTO
+            : 'https://api-egresados.onrender.com'; // CAMBIA ESTO
         
         this.egresadoIdToDelete = null;
         this.currentEditId = null;
