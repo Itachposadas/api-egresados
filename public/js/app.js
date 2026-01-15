@@ -67,12 +67,19 @@ class ControlEgresados {
 
         if (noData) noData.style.display = 'none';
 
+        // Renderizar con nuevas columnas (Estatus y Género)
         tbody.innerHTML = egresados.map(egresado => `
             <tr data-id="${egresado._id}">
                 <td>${egresado.nombre} ${egresado.apellido}</td>
                 <td>${egresado.cedula}</td>
                 <td>${egresado.carrera}</td>
-                <td>${egresado.anoGraduacion}</td>
+                <td class="text-center">${egresado.anoGraduacion}</td>
+                <td class="text-center">
+                    <span class="status-badge ${this.getStatusClass(egresado.empresaActual)}">
+                        ${egresado.empresaActual || 'No especificado'}
+                    </span>
+                </td>
+                <td class="text-center">${egresado.puesto || 'No especificado'}</td>
                 <td>
                     <div class="action-buttons">
                         <button class="btn btn-edit" data-id="${egresado._id}">
@@ -88,6 +95,18 @@ class ControlEgresados {
 
         // Agregar event listeners a los botones recién creados
         this.agregarEventListenersTabla();
+    }
+
+    // Método auxiliar para clases CSS según estatus
+    getStatusClass(status) {
+        if (!status) return 'status-default';
+        
+        const statusLower = status.toLowerCase();
+        if (statusLower.includes('egresado')) return 'status-success';
+        if (statusLower.includes('titulado')) return 'status-primary';
+        if (statusLower.includes('seguimiento')) return 'status-warning';
+        
+        return 'status-default';
     }
 
     agregarEventListenersTabla() {
@@ -226,6 +245,7 @@ class ControlEgresados {
             return;
         }
 
+        // Obtener los valores de los nuevos campos (Estatus y Género)
         const formData = {
             nombre: document.getElementById('nombre').value.trim(),
             apellido: document.getElementById('apellido').value.trim(),
@@ -234,8 +254,8 @@ class ControlEgresados {
             anoGraduacion: parseInt(document.getElementById('anoGraduacion').value),
             correo: document.getElementById('correo').value.trim(),
             telefono: document.getElementById('telefono').value.trim(),
-            empresaActual: document.getElementById('empresaActual').value.trim(),
-            puesto: document.getElementById('puesto').value.trim()
+            empresaActual: document.getElementById('empresaActual').value, // Ahora es Estatus
+            puesto: document.getElementById('puesto').value // Ahora es Género
         };
 
         try {
@@ -293,6 +313,8 @@ class ControlEgresados {
         const correo = document.getElementById('correo').value.trim();
         const anoGraduacion = parseInt(document.getElementById('anoGraduacion').value);
         const carrera = document.getElementById('carrera').value;
+        const estatus = document.getElementById('empresaActual').value;
+        const genero = document.getElementById('puesto').value;
 
         if (!nombre || nombre.length < 2) {
             errores.push('El nombre debe tener al menos 2 caracteres');
@@ -309,6 +331,14 @@ class ControlEgresados {
 
         if (!carrera) {
             errores.push('Seleccione una carrera');
+        }
+
+        if (!estatus) {
+            errores.push('Seleccione un estatus');
+        }
+
+        if (!genero) {
+            errores.push('Seleccione un género');
         }
 
         const anioActual = new Date().getFullYear();
@@ -330,7 +360,7 @@ class ControlEgresados {
 
             const egresado = await response.json();
 
-            // Llenar formulario con datos
+            // Llenar formulario con datos (incluyendo los nuevos campos)
             document.getElementById('egresado-id').value = egresado._id;
             document.getElementById('nombre').value = egresado.nombre;
             document.getElementById('apellido').value = egresado.apellido;
@@ -339,7 +369,9 @@ class ControlEgresados {
             document.getElementById('carrera').value = egresado.carrera;
             document.getElementById('anoGraduacion').value = egresado.anoGraduacion;
             document.getElementById('telefono').value = egresado.telefono || '';
+            // Campo "empresaActual" ahora es "Estatus"
             document.getElementById('empresaActual').value = egresado.empresaActual || '';
+            // Campo "puesto" ahora es "Género"
             document.getElementById('puesto').value = egresado.puesto || '';
 
             // Cambiar título del formulario
@@ -491,7 +523,8 @@ class ControlEgresados {
                 return;
             }
 
-            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            // Actualizado con los nuevos campos
+            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Estatus,Género,Fecha Registro\n';
 
             this.allEgresados.forEach(egresado => {
                 csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
@@ -519,7 +552,8 @@ class ControlEgresados {
         try {
             this.mostrarLoading(true);
 
-            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            // Actualizado con los nuevos campos
+            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Estatus,Género,Fecha Registro\n';
 
             this.filteredEgresados.forEach(egresado => {
                 csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
@@ -560,8 +594,8 @@ class ControlEgresados {
             anoGraduacion: 2020,
             correo: 'juan.perez@email.com',
             telefono: '3001234567',
-            empresaActual: 'Tech Corp',
-            puesto: 'Desarrollador Senior'
+            empresaActual: 'Egresado', // Estatus
+            puesto: 'Masculino' // Género
         };
 
         Object.keys(datosEjemplo).forEach(key => {

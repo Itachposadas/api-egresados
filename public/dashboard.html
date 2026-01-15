@@ -459,7 +459,7 @@
 
                 <div class="form-group">
                   <label for="empresaActual"
-                    ><i class="fas fa-building"></i> Empresa Actual</label
+                    ><i class="fas fa-building"></i> Estatus</label
                   >
                   <select id="empresaActual" required>
                     <option value="">Seleccionar estatus</option>
@@ -471,9 +471,13 @@
 
                 <div class="form-group">
                   <label for="puesto"
-                    ><i class="fas fa-briefcase"></i> Puesto</label
+                    ><i class="fas fa-briefcase"></i> Genero</label
                   >
-                  <input type="text" id="puesto" />
+                  <select id="puesto" required>
+                    <option value="">Seleccionar genero</option>
+                    <option value="Masculino">Masculino</option>
+                    <option value="Femenino">Femenino</option>
+            
                 </div>
               </div>
 
@@ -520,20 +524,24 @@
             </div>
 
             <div class="table-container">
-              <table id="egresados-table">
-                <thead>
-                  <tr>
-                    <th>Nombre</th>
-                    <th>Cédula</th>
-                    <th>Carrera</th>
-                    <th>Año Graduación</th>
-                    <th>Acciones</th>
-                  </tr>
+                <table id="egresados-table">
+                    <thead>
+                        <tr>
+                            <th>Nombre</th>
+                            <th>Matrícula</th>
+                            <th>Carrera</th>
+                            <th>Año Graduación</th>
+                            <th>Estatus</th>  <!-- NUEVO -->
+                            <th>Género</th>   <!-- NUEVO -->
+                            <th>Teléfono</th> <!-- NUEVO (si quieres mostrarlo) -->
+                            <th>Correo</th>   <!-- NUEVO (si quieres mostrarlo) -->
+                            <th>Acciones</th>
+                        </tr>
                 </thead>
                 <tbody id="egresados-body">
-                  <!-- Los datos se cargarán aquí -->
+            <!-- Los datos se cargarán aquí -->
                 </tbody>
-              </table>
+                 </table>
             </div>
 
             <div id="loading" class="loading">
