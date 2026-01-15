@@ -16,6 +16,32 @@ class ControlEgresados {
     init() {
         this.cargarEgresados();
         this.setupEventListeners();
+        this.configurarValidacionCedula();
+    }
+
+    // Configurar validación de cédula en tiempo real
+    configurarValidacionCedula() {
+        const cedulaInput = document.getElementById('cedula');
+        if (cedulaInput) {
+            // Solo permite números
+            cedulaInput.addEventListener('input', (e) => {
+                e.target.value = e.target.value.replace(/[^0-9]/g, '');
+                
+                // Limitar a 8 caracteres
+                if (e.target.value.length > 8) {
+                    e.target.value = e.target.value.substring(0, 8);
+                }
+            });
+
+            // Validar al perder foco
+            cedulaInput.addEventListener('blur', (e) => {
+                const value = e.target.value.trim();
+                if (value && value.length !== 8) {
+                    this.mostrarNotificacion('La cédula debe tener exactamente 8 números', 'error');
+                    e.target.focus();
+                }
+            });
+        }
     }
 
     async cargarEgresados() {
@@ -71,7 +97,7 @@ class ControlEgresados {
             </tr>
         `).join('');
 
-        // aAgregar event listeners a los botones recién creados
+        // Agregar event listeners a los botones recién creados
         this.agregarEventListenersTabla();
     }
 
@@ -150,8 +176,6 @@ class ControlEgresados {
         }
     }
 
-    // ... (otros métodos permanecen igual hasta setupEventListeners)
-
     setupEventListeners() {
         // Formulario
         const form = document.getElementById('egresado-form');
@@ -207,25 +231,8 @@ class ControlEgresados {
             });
         }
 
-        // Botón exportar TODOS
-        const exportAllBtn = document.getElementById('export-all-btn');
-        if (exportAllBtn) {
-            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
-        } else {
-            const exportBtn = document.getElementById('export-btn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
-            }
-        }
-
-        // Botón exportar FILTRADOS
-        const exportFilteredBtn = document.getElementById('export-filtered-btn');
-        if (exportFilteredBtn) {
-            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
-        }
+        // NOTA: Se han eliminado los event listeners para los botones de exportar CSV
     }
-
-    // ... (mantén todos los demás métodos igual)
 
     async guardarEgresado(event) {
         event.preventDefault();
@@ -309,8 +316,9 @@ class ControlEgresados {
             errores.push('El nombre debe tener al menos 2 caracteres');
         }
 
-        if (!cedula || !/^\d+$/.test(cedula)) {
-            errores.push('La cédula debe contener solo números');
+        // VALIDACIÓN MEJORADA PARA CÉDULA (EXACTAMENTE 8 NÚMEROS)
+        if (!cedula || !/^\d{8}$/.test(cedula)) {
+            errores.push('La cédula debe tener exactamente 8 números');
         }
 
         if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
@@ -445,11 +453,6 @@ class ControlEgresados {
             filas.forEach(fila => {
                 fila.style.display = '';
             });
-            // Ocultar botón de exportar filtrados
-            const exportFilteredBtn = document.getElementById('export-filtered-btn');
-            if (exportFilteredBtn) {
-                exportFilteredBtn.style.display = 'none';
-            }
             // Restaurar contador total
             this.actualizarEstadisticas(this.allEgresados.length);
             return;
@@ -476,17 +479,6 @@ class ControlEgresados {
             }
         });
 
-        // Mostrar/ocultar botón de exportar filtrados
-        const exportFilteredBtn = document.getElementById('export-filtered-btn');
-        if (exportFilteredBtn) {
-            if (encontrados > 0) {
-                exportFilteredBtn.style.display = 'inline-flex';
-                exportFilteredBtn.innerHTML = `<i class="fas fa-filter"></i> Exportar Filtrados (${encontrados})`;
-            } else {
-                exportFilteredBtn.style.display = 'none';
-            }
-        }
-
         // Actualizar contador de búsqueda
         const stats = document.getElementById('total-egresados');
         if (stats && busqueda) {
@@ -494,85 +486,17 @@ class ControlEgresados {
         }
     }
 
-    async exportarTodosCSV() {
-        try {
-            this.mostrarLoading(true);
-
-            if (!this.allEgresados || this.allEgresados.length === 0) {
-                this.mostrarNotificacion('No hay datos para exportar', 'error');
-                return;
-            }
-
-            // Crear CSV
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
-
-            this.allEgresados.forEach(egresado => {
-                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}",`;
-                csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
-            });
-
-            // Descargar archivo
-            this.descargarCSV(csv, 'todos_egresados');
-            this.mostrarNotificacion(`${this.allEgresados.length} egresados exportados correctamente`, 'success');
-
-        } catch (error) {
-            console.error('Error exportando datos:', error);
-            this.mostrarNotificacion('Error al exportar datos', 'error');
-        } finally {
-            this.mostrarLoading(false);
-        }
-    }
-
-    async exportarFiltradosCSV() {
-        if (this.filteredEgresados.length === 0) {
-            this.mostrarNotificacion('No hay egresados filtrados para exportar', 'warning');
-            return;
-        }
-
-        try {
-            this.mostrarLoading(true);
-
-            // Crear CSV con datos filtrados
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
-
-            this.filteredEgresados.forEach(egresado => {
-                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}",`;
-                csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
-            });
-
-            // Descargar archivo
-            const termino = this.lastSearchTerm.replace(/[^a-z0-9]/gi, '_').substring(0, 20);
-            this.descargarCSV(csv, `filtrados_${termino || 'busqueda'}`);
-            this.mostrarNotificacion(`${this.filteredEgresados.length} egresados filtrados exportados`, 'success');
-
-        } catch (error) {
-            console.error('Error exportando filtrados:', error);
-            this.mostrarNotificacion('Error al exportar filtrados', 'error');
-        } finally {
-            this.mostrarLoading(false);
-        }
-    }
-
-    descargarCSV(csv, nombreBase) {
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${nombreBase}_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    }
+    // NOTA: Se han eliminado los métodos de exportación CSV:
+    // - exportarTodosCSV()
+    // - exportarFiltradosCSV()
+    // - descargarCSV()
 
     cargarDatosEjemplo() {
         const datosEjemplo = {
             nombre: 'Juan',
             apellido: 'Pérez',
-            cedula: '12345678',
-            carrera: 'Ingeniería de Sistemas',
+            cedula: '12345678', // Exactamente 8 números
+            carrera: 'Ingeniería en Sistemas Computacionales',
             anoGraduacion: 2020,
             correo: 'juan.perez@email.com',
             telefono: '3001234567',
@@ -594,34 +518,6 @@ class ControlEgresados {
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ControlEgresados();
-
-    // Si no existen los botones específicos de exportación, crearlos
-    const stats = document.querySelector('.stats');
-    if (stats && !document.getElementById('export-all-btn')) {
-        const exportButtons = document.createElement('div');
-        exportButtons.className = 'export-buttons';
-
-        const exportAllBtn = document.createElement('button');
-        exportAllBtn.id = 'export-all-btn';
-        exportAllBtn.className = 'btn btn-primary';
-        exportAllBtn.innerHTML = '<i class="fas fa-download"></i> Exportar Todos (CSV)';
-        exportAllBtn.onclick = () => window.app.exportarTodosCSV();
-
-        const exportFilteredBtn = document.createElement('button');
-        exportFilteredBtn.id = 'export-filtered-btn';
-        exportFilteredBtn.className = 'btn btn-secondary';
-        exportFilteredBtn.style.display = 'none';
-        exportFilteredBtn.innerHTML = '<i class="fas fa-filter"></i> Exportar Filtrados';
-        exportFilteredBtn.onclick = () => window.app.exportarFiltradosCSV();
-
-        exportButtons.appendChild(exportAllBtn);
-        exportButtons.appendChild(exportFilteredBtn);
-
-        const oldExportBtn = document.getElementById('export-btn');
-        if (oldExportBtn) {
-            oldExportBtn.replaceWith(exportButtons);
-        } else {
-            stats.appendChild(exportButtons);
-        }
-    }
+    
+    // NOTA: Se ha eliminado el código que creaba los botones de exportación dinámicamente
 });

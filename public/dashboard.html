@@ -1,708 +1,777 @@
 <!DOCTYPE html>
 <html lang="es">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Dashboard - Sistema de Egresados UMB</title>
-    <link rel="stylesheet" href="./css/styles.css">
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="./css/styles.css" />
+    <link
+      href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css"
+      rel="stylesheet"
+    />
     <style>
-        /* ===== BARRA DE NAVEGACIÓN SUPERIOR ===== */
+      /* ===== BARRA DE NAVEGACIÓN SUPERIOR ===== */
+      .navbar {
+        background: linear-gradient(135deg, #006837 0%, #00a859 100%);
+        color: white;
+        padding: 0;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        position: sticky;
+        top: 0;
+        z-index: 1000;
+        height: 70px;
+      }
+
+      .nav-left {
+        display: flex;
+        align-items: center;
+        height: 100%;
+      }
+
+      .nav-brand {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+        padding: 0 25px;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.1);
+        border-right: 1px solid rgba(255, 255, 255, 0.1);
+      }
+
+      .nav-brand i {
+        font-size: 1.8rem;
+      }
+
+      .nav-brand h1 {
+        font-size: 1.3rem;
+        margin: 0;
+        font-weight: 600;
+      }
+
+      .nav-menu {
+        display: flex;
+        align-items: center;
+        padding: 0 25px;
+      }
+
+      .nav-menu a {
+        color: white;
+        text-decoration: none;
+        margin: 0 15px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        opacity: 0.9;
+        transition: all 0.3s;
+        font-size: 0.95rem;
+      }
+
+      .nav-menu a:hover {
+        opacity: 1;
+        transform: translateY(-1px);
+      }
+
+      .nav-right {
+        display: flex;
+        align-items: center;
+        height: 100%;
+        padding: 0 25px;
+        background: rgba(0, 0, 0, 0.05);
+      }
+
+      .user-info {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      .user-avatar {
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+      }
+
+      .user-details {
+        display: flex;
+        flex-direction: column;
+      }
+
+      .user-name {
+        font-weight: 600;
+        font-size: 0.95rem;
+      }
+
+      .user-role {
+        font-size: 0.8rem;
+        opacity: 0.8;
+      }
+
+      .btn-logout {
+        background: rgba(255, 255, 255, 0.15);
+        color: white;
+        border: none;
+        padding: 8px 15px;
+        border-radius: 6px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        transition: all 0.3s;
+        margin-left: 15px;
+        font-size: 0.9rem;
+      }
+
+      .btn-logout:hover {
+        background: rgba(255, 255, 255, 0.25);
+        transform: translateY(-1px);
+      }
+
+      /* ===== CONTENIDO PRINCIPAL ===== */
+      .main-content {
+        min-height: calc(100vh - 70px);
+        background: #f5f7fa;
+      }
+
+      /* Ajustar container */
+      .container {
+        margin: 0 auto;
+        max-width: 1200px;
+        background: white;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
+        overflow: hidden;
+        border: 1px solid #e9ecef;
+        margin-top: 0;
+      }
+
+      /* Header dentro del contenedor */
+      .container header {
+        padding: 30px;
+        text-align: center;
+        border-bottom: 1px solid #e9ecef;
+      }
+
+      .welcome-section {
+        background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+        padding: 25px 30px;
+        border-bottom: 1px solid #dee2e6;
+      }
+
+      .welcome-section h2 {
+        color: #006837;
+        margin-bottom: 10px;
+        font-size: 1.4rem;
+      }
+
+      .welcome-section p {
+        color: #6c757d;
+        margin-bottom: 0;
+      }
+
+      /* ===== ESTILOS PARA BOTONES PDF ===== */
+      .btn-pdf {
+        background: linear-gradient(135deg, #e74c3c, #c0392b);
+        color: white;
+        padding: 8px 12px;
+        font-size: 0.9rem;
+        border-radius: 6px;
+        border: none;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 5px;
+        transition: all 0.3s ease;
+        font-weight: 500;
+      }
+
+      .btn-pdf:hover {
+        background: linear-gradient(135deg, #c0392b, #a93226);
+        transform: translateY(-1px);
+        box-shadow: 0 3px 8px rgba(231, 76, 60, 0.3);
+      }
+
+      /* Corrección del modal */
+      #delete-modal {
+        display: none !important;
+      }
+
+      #delete-modal.active {
+        display: flex !important;
+      }
+
+      /* Botones de exportación */
+      .export-buttons {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      /* ===== RESPONSIVE ===== */
+      @media (max-width: 992px) {
         .navbar {
-            background: linear-gradient(135deg, #006837 0%, #00A859 100%);
-            color: white;
-            padding: 0;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
-            position: sticky;
-            top: 0;
-            z-index: 1000;
-            height: 70px;
+          flex-direction: column;
+          height: auto;
+          padding: 15px 0;
         }
-        
-        .nav-left {
-            display: flex;
-            align-items: center;
-            height: 100%;
-        }
-        
-        .nav-brand {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-            padding: 0 25px;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.1);
-            border-right: 1px solid rgba(255, 255, 255, 0.1);
-        }
-        
-        .nav-brand i {
-            font-size: 1.8rem;
-        }
-        
-        .nav-brand h1 {
-            font-size: 1.3rem;
-            margin: 0;
-            font-weight: 600;
-        }
-        
-        .nav-menu {
-            display: flex;
-            align-items: center;
-            padding: 0 25px;
-        }
-        
-        .nav-menu a {
-            color: white;
-            text-decoration: none;
-            margin: 0 15px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            opacity: 0.9;
-            transition: all 0.3s;
-            font-size: 0.95rem;
-        }
-        
-        .nav-menu a:hover {
-            opacity: 1;
-            transform: translateY(-1px);
-        }
-        
+
+        .nav-left,
         .nav-right {
-            display: flex;
-            align-items: center;
-            height: 100%;
-            padding: 0 25px;
-            background: rgba(0, 0, 0, 0.05);
+          width: 100%;
+          justify-content: center;
+          padding: 10px 0;
         }
-        
-        .user-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
+
+        .nav-brand {
+          border-right: none;
+          border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+          justify-content: center;
+          padding: 10px 0;
         }
-        
-        .user-avatar {
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            background: rgba(255, 255, 255, 0.2);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
+
+        .nav-menu {
+          padding: 15px 0;
+          flex-wrap: wrap;
+          justify-content: center;
         }
-        
-        .user-details {
-            display: flex;
-            flex-direction: column;
+
+        .nav-menu a {
+          margin: 5px 10px;
         }
-        
-        .user-name {
-            font-weight: 600;
-            font-size: 0.95rem;
-        }
-        
-        .user-role {
-            font-size: 0.8rem;
-            opacity: 0.8;
-        }
-        
-        .btn-logout {
-            background: rgba(255, 255, 255, 0.15);
-            color: white;
-            border: none;
-            padding: 8px 15px;
-            border-radius: 6px;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-            margin-left: 15px;
-            font-size: 0.9rem;
-        }
-        
-        .btn-logout:hover {
-            background: rgba(255, 255, 255, 0.25);
-            transform: translateY(-1px);
-        }
-        
-        /* ===== CONTENIDO PRINCIPAL ===== */
+
         .main-content {
-            min-height: calc(100vh - 70px);
-            background: #f5f7fa;
+          min-height: calc(100vh - 180px);
         }
-        
-        /* Ajustar container */
+      }
+
+      @media (max-width: 768px) {
         .container {
-            margin: 0 auto;
-            max-width: 1200px;
-            background: white;
-            border-radius: 0 0 20px 20px;
-            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.1);
-            overflow: hidden;
-            border: 1px solid #e9ecef;
-            margin-top: 0;
+          margin: 10px;
+          border-radius: 15px;
         }
-        
-        /* Header dentro del contenedor */
-        .container header {
-            padding: 30px;
-            text-align: center;
-            border-bottom: 1px solid #e9ecef;
-        }
-        
-        .welcome-section {
-            background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
-            padding: 25px 30px;
-            border-bottom: 1px solid #dee2e6;
-        }
-        
-        .welcome-section h2 {
-            color: #006837;
-            margin-bottom: 10px;
-            font-size: 1.4rem;
-        }
-        
-        .welcome-section p {
-            color: #6c757d;
-            margin-bottom: 0;
-        }
-        
-        /* ===== ESTILOS PARA BOTONES PDF ===== */
-        .btn-pdf {
-            background: linear-gradient(135deg, #e74c3c, #c0392b);
-            color: white;
-            padding: 8px 12px;
-            font-size: 0.9rem;
-            border-radius: 6px;
-            border: none;
-            cursor: pointer;
-            display: inline-flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.3s ease;
-            font-weight: 500;
-        }
-        
-        .btn-pdf:hover {
-            background: linear-gradient(135deg, #c0392b, #a93226);
-            transform: translateY(-1px);
-            box-shadow: 0 3px 8px rgba(231, 76, 60, 0.3);
-        }
-        
-        /* Corrección del modal */
-        #delete-modal {
-            display: none !important;
-        }
-        
-        #delete-modal.active {
-            display: flex !important;
-        }
-        
-        /* Botones de exportación */
+
         .export-buttons {
-            display: flex;
-            gap: 10px;
-            flex-wrap: wrap;
+          flex-direction: column;
+          width: 100%;
         }
-        
-        /* ===== RESPONSIVE ===== */
-        @media (max-width: 992px) {
-            .navbar {
-                flex-direction: column;
-                height: auto;
-                padding: 15px 0;
-            }
-            
-            .nav-left, .nav-right {
-                width: 100%;
-                justify-content: center;
-                padding: 10px 0;
-            }
-            
-            .nav-brand {
-                border-right: none;
-                border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-                justify-content: center;
-                padding: 10px 0;
-            }
-            
-            .nav-menu {
-                padding: 15px 0;
-                flex-wrap: wrap;
-                justify-content: center;
-            }
-            
-            .nav-menu a {
-                margin: 5px 10px;
-            }
-            
-            .main-content {
-                min-height: calc(100vh - 180px);
-            }
+
+        .export-buttons .btn {
+          width: 100%;
+          justify-content: center;
         }
-        
-        @media (max-width: 768px) {
-            .container {
-                margin: 10px;
-                border-radius: 15px;
-            }
-            
-            .export-buttons {
-                flex-direction: column;
-                width: 100%;
-            }
-            
-            .export-buttons .btn {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .action-buttons {
-                flex-direction: column;
-                gap: 5px;
-            }
-            
-            .btn-pdf {
-                width: 100%;
-                justify-content: center;
-            }
-            
-            .user-info {
-                flex-direction: column;
-                text-align: center;
-                gap: 8px;
-            }
-            
-            .btn-logout {
-                margin-left: 0;
-                margin-top: 10px;
-            }
+
+        .action-buttons {
+          flex-direction: column;
+          gap: 5px;
         }
-        
-        @media (max-width: 480px) {
-            .container header h1 {
-                font-size: 1.8rem;
-            }
-            
-            .container header p {
-                font-size: 1rem;
-            }
-            
-            .nav-brand h1 {
-                font-size: 1.1rem;
-            }
-            
-            .nav-menu a {
-                font-size: 0.85rem;
-                margin: 5px;
-            }
+
+        .btn-pdf {
+          width: 100%;
+          justify-content: center;
         }
-        
-        /* ===== ANIMACIONES ===== */
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+
+        .user-info {
+          flex-direction: column;
+          text-align: center;
+          gap: 8px;
         }
-        
-        .container {
-            animation: fadeIn 0.5s ease;
+
+        .btn-logout {
+          margin-left: 0;
+          margin-top: 10px;
         }
-        
-        /* ===== ESTADO ACTIVO DEL MENÚ ===== */
-        .nav-menu a.active {
-            color: #7AC143;
-            opacity: 1;
-            font-weight: 600;
+      }
+
+      @media (max-width: 480px) {
+        .container header h1 {
+          font-size: 1.8rem;
         }
+
+        .container header p {
+          font-size: 1rem;
+        }
+
+        .nav-brand h1 {
+          font-size: 1.1rem;
+        }
+
+        .nav-menu a {
+          font-size: 0.85rem;
+          margin: 5px;
+        }
+      }
+
+      /* ===== ANIMACIONES ===== */
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      .container {
+        animation: fadeIn 0.5s ease;
+      }
+
+      /* ===== ESTADO ACTIVO DEL MENÚ ===== */
+      .nav-menu a.active {
+        color: #7ac143;
+        opacity: 1;
+        font-weight: 600;
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <!-- Barra de navegación superior -->
     <nav class="navbar">
-        <div class="nav-left">
-            <div class="nav-brand">
-                <i class="fas fa-user-graduate"></i>
-                <h1>UMB Egresados</h1>
-            </div>
-            
+      <div class="nav-left">
+        <div class="nav-brand">
+          <i class="fas fa-user-graduate"></i>
+          <h1>UMB Egresados</h1>
         </div>
-        
-        <div class="nav-right">
-            <div class="user-info">
-                <div class="user-avatar">
-                    <i class="fas fa-user"></i>
-                </div>
-                <div class="user-details">
-                    <div class="user-name" id="user-name">Cargando...</div>
-                    <div class="user-role" id="user-role">Usuario</div>
-                </div>
-                <button class="btn-logout" id="btn-logout">
-                    <i class="fas fa-sign-out-alt"></i> Salir
-                </button>
-            </div>
+      </div>
+
+      <div class="nav-right">
+        <div class="user-info">
+          <div class="user-avatar">
+            <i class="fas fa-user"></i>
+          </div>
+          <div class="user-details">
+            <div class="user-name" id="user-name">Cargando...</div>
+            <div class="user-role" id="user-role">Usuario</div>
+          </div>
+          <button class="btn-logout" id="btn-logout">
+            <i class="fas fa-sign-out-alt"></i> Salir
+          </button>
         </div>
+      </div>
     </nav>
-    
+
     <!-- Contenido principal -->
     <div class="main-content">
-        <div class="container">
-            <!-- Sección de bienvenida -->
-            <div class="welcome-section">
-                <h2 id="welcome-message">Bienvenido al Sistema de Control de Egresados</h2>
-                <p id="current-date">Cargando fecha...</p>
-            </div>
-            
-            <header>
-                <h1><i class="fas fa-user-graduate"></i> Control de Egresados</h1>
-                <p>Sistema de gestión de egresados universitarios</p>
-            </header>
-
-            <main>
-                <section class="form-section">
-                    <h2 id="form-title"><i class="fas fa-user-plus"></i> Agregar Nuevo Egresado</h2>
-                    <form id="egresado-form">
-                        <input type="hidden" id="egresado-id">
-                        
-                        <div class="form-grid">
-                            <div class="form-group">
-                                <label for="nombre"><i class="fas fa-user"></i> Nombre</label>
-                                <input type="text" id="nombre" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="apellido"><i class="fas fa-user"></i> Apellido</label>
-                                <input type="text" id="apellido" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="cedula"><i class="fas fa-id-card"></i> Cédula</label>
-                                <input type="text" id="cedula" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="correo"><i class="fas fa-envelope"></i> Correo</label>
-                                <input type="email" id="correo" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="carrera"><i class="fas fa-graduation-cap"></i> Carrera</label>
-                                <select id="carrera" required>
-                                    <option value="">Seleccionar carrera</option>
-                                    <option value="Ingeniería en Sistemas Computacionales">Ingeniería en Sistemas Computacionales</option>
-                                    <option value="Ingeniería en Innovación Agricola Sustentable">Ingeniería en Innovación Agricola Sustentable</option>
-                                    <option value="Contabilidad">Licenciatura en Contaduría</option>
-                                  
-                                    
-                                </select>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="anoGraduacion"><i class="fas fa-calendar-alt"></i> Año Graduación</label>
-                                <input type="number" id="anoGraduacion" min="2000" max="2030" required>
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="telefono"><i class="fas fa-phone"></i> Teléfono</label>
-                                <input type="text" id="telefono">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="empresaActual"><i class="fas fa-building"></i> Empresa Actual</label>
-                                <input type="text" id="empresaActual">
-                            </div>
-                            
-                            <div class="form-group">
-                                <label for="puesto"><i class="fas fa-briefcase"></i> Puesto</label>
-                                <input type="text" id="puesto">
-                            </div>
-                        </div>
-                        
-                        <div class="form-buttons">
-                            <button type="submit" class="btn btn-primary">
-                                <i class="fas fa-save"></i> Guardar Egresado
-                            </button>
-                            <button type="button" id="cancel-btn" class="btn btn-secondary" style="display: none;">
-                                <i class="fas fa-times"></i> Cancelar
-                            </button>
-                            
-                        </div>
-                    </form>
-                </section>
-
-                <section class="list-section">
-                    <h2><i class="fas fa-list"></i> Lista de Egresados</h2>
-                    
-                    <div class="search-box">
-                        <input type="text" id="search-input" placeholder="Buscar por nombre, cédula o carrera...">
-                        <i class="fas fa-search"></i>
-                    </div>
-                    
-                    <div class="stats">
-                        <span id="total-egresados">Total: 0</span>
-                        <!-- Botones de exportación mejorados -->
-                        <div class="export-buttons">
-                            <button id="export-filtered-btn" class="btn btn-secondary" style="display: none;">
-                                <i class="fas fa-filter"></i> Exportar Filtrados
-                            </button>
-                        </div>
-                    </div>
-                    
-                    <div class="table-container">
-                        <table id="egresados-table">
-                            <thead>
-                                <tr>
-                                    <th>Nombre</th>
-                                    <th>Cédula</th>
-                                    <th>Carrera</th>
-                                    <th>Año Graduación</th>
-                                    <th>Acciones</th>
-                                </tr>
-                            </thead>
-                            <tbody id="egresados-body">
-                                <!-- Los datos se cargarán aquí -->
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <div id="loading" class="loading">
-                        <i class="fas fa-spinner fa-spin"></i> Cargando...
-                    </div>
-                    
-                    <div id="no-data" class="no-data" style="display: none;">
-                        <i class="fas fa-info-circle"></i> No hay egresados registrados
-                    </div>
-                </section>
-            </main>
-            
-            <footer>
-                <p>Sistema CRUD de Egresados - Universidad Mexiquense del Bicentenario &copy; 2026</p>
-                <p style="font-size: 0.9rem; margin-top: 5px; opacity: 0.8;">
-                    Usuario activo: <span id="footer-user">Administrador</span> | 
-                    Última actualización: <span id="last-update">Hoy</span>
-                </p>
-            </footer>
+      <div class="container">
+        <!-- Sección de bienvenida -->
+        <div class="welcome-section">
+          <h2 id="welcome-message">
+            Bienvenido al Sistema de Control de Egresados
+          </h2>
+          <p id="current-date">Cargando fecha...</p>
         </div>
+
+        <header>
+          <h1><i class="fas fa-user-graduate"></i> Control de Egresados</h1>
+          <p>Sistema de gestión de egresados universitarios</p>
+        </header>
+
+        <main>
+          <section class="form-section">
+            <h2 id="form-title">
+              <i class="fas fa-user-plus"></i> Agregar Nuevo Egresado
+            </h2>
+            <form id="egresado-form">
+              <input type="hidden" id="egresado-id" />
+
+              <div class="form-grid">
+                <div class="form-group">
+                  <label for="nombre"><i class="fas fa-user"></i> Nombre</label>
+                  <input type="text" id="nombre" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="apellido"
+                    ><i class="fas fa-user"></i> Apellido</label
+                  >
+                  <input type="text" id="apellido" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="cedula"
+                    ><i class="fas fa-id-card"></i> Matricula</label
+                  >
+                  <input
+                    type="text"
+                    id="cedula"
+                    required
+                    maxlength="8"
+                    pattern="\d{8}"
+                    title="La cédula debe tener exactamente 8 números"
+                    oninput="this.value = this.value.replace(/[^0-9]/g, '')"
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="correo"
+                    ><i class="fas fa-envelope"></i> Correo</label
+                  >
+                  <input type="email" id="correo" required />
+                </div>
+
+                <div class="form-group">
+                  <label for="carrera"
+                    ><i class="fas fa-graduation-cap"></i> Carrera</label
+                  >
+                  <select id="carrera" required>
+                    <option value="">Seleccionar carrera</option>
+                    <option value="Ingeniería en Sistemas Computacionales">
+                      Ingeniería en Sistemas Computacionales
+                    </option>
+                    <option
+                      value="Ingeniería en Innovación Agricola Sustentable"
+                    >
+                      Ingeniería en Innovación Agricola Sustentable
+                    </option>
+                    <option value="Contabilidad">
+                      Licenciatura en Contaduría
+                    </option>
+                  </select>
+                </div>
+
+                <div class="form-group">
+                  <label for="anoGraduacion"
+                    ><i class="fas fa-calendar-alt"></i> Año Graduación</label
+                  >
+                  <input
+                    type="number"
+                    id="anoGraduacion"
+                    min="2000"
+                    max="2030"
+                    required
+                  />
+                </div>
+
+                <div class="form-group">
+                  <label for="telefono"
+                    ><i class="fas fa-phone"></i> Teléfono</label
+                  >
+                  <input type="text" id="telefono" />
+                </div>
+
+                <div class="form-group">
+                  <label for="empresaActual"
+                    ><i class="fas fa-building"></i> Empresa Actual</label
+                  >
+                  <input type="text" id="empresaActual" />
+                </div>
+
+                <div class="form-group">
+                  <label for="puesto"
+                    ><i class="fas fa-briefcase"></i> Puesto</label
+                  >
+                  <input type="text" id="puesto" />
+                </div>
+              </div>
+
+              <div class="form-buttons">
+                <button type="submit" class="btn btn-primary">
+                  <i class="fas fa-save"></i> Guardar Egresado
+                </button>
+                <button
+                  type="button"
+                  id="cancel-btn"
+                  class="btn btn-secondary"
+                  style="display: none"
+                >
+                  <i class="fas fa-times"></i> Cancelar
+                </button>
+              </div>
+            </form>
+          </section>
+
+          <section class="list-section">
+            <h2><i class="fas fa-list"></i> Lista de Egresados</h2>
+
+            <div class="search-box">
+              <input
+                type="text"
+                id="search-input"
+                placeholder="Buscar por nombre, cédula o carrera..."
+              />
+              <i class="fas fa-search"></i>
+            </div>
+
+            <div class="stats">
+              <span id="total-egresados">Total: 0</span>
+              </div>
+            </div>
+
+            <div class="table-container">
+              <table id="egresados-table">
+                <thead>
+                  <tr>
+                    <th>Nombre</th>
+                    <th>Cédula</th>
+                    <th>Carrera</th>
+                    <th>Año Graduación</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody id="egresados-body">
+                  <!-- Los datos se cargarán aquí -->
+                </tbody>
+              </table>
+            </div>
+
+            <div id="loading" class="loading">
+              <i class="fas fa-spinner fa-spin"></i> Cargando...
+            </div>
+
+            <div id="no-data" class="no-data" style="display: none">
+              <i class="fas fa-info-circle"></i> No hay egresados registrados
+            </div>
+          </section>
+        </main>
+
+        <footer>
+          <p>
+            Sistema CRUD de Egresados - Universidad Mexiquense del Bicentenario
+            &copy; 2026
+          </p>
+          <p style="font-size: 0.9rem; margin-top: 5px; opacity: 0.8">
+            Usuario activo: <span id="footer-user">Administrador</span> | Última
+            actualización: <span id="last-update">Hoy</span>
+          </p>
+        </footer>
+      </div>
     </div>
 
     <!-- Modal para confirmar eliminación - CORREGIDO -->
-    <div id="delete-modal" class="modal" style="display: none;">
-        <div class="modal-content">
-            <h3><i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación</h3>
-            <p>¿Estás seguro de que deseas eliminar este egresado?</p>
-            <p style="font-size: 0.9rem; color: #666; margin-top: 10px;">
-                Esta acción no se puede deshacer.
-            </p>
-            <div class="modal-buttons">
-                <button id="confirm-delete" class="btn btn-danger">
-                    <i class="fas fa-trash"></i> Sí, Eliminar
-                </button>
-                <button id="cancel-delete" class="btn btn-secondary">
-                    <i class="fas fa-times"></i> Cancelar
-                </button>
-            </div>
+    <div id="delete-modal" class="modal" style="display: none">
+      <div class="modal-content">
+        <h3>
+          <i class="fas fa-exclamation-triangle"></i> Confirmar Eliminación
+        </h3>
+        <p>¿Estás seguro de que deseas eliminar este egresado?</p>
+        <p style="font-size: 0.9rem; color: #666; margin-top: 10px">
+          Esta acción no se puede deshacer.
+        </p>
+        <div class="modal-buttons">
+          <button id="confirm-delete" class="btn btn-danger">
+            <i class="fas fa-trash"></i> Sí, Eliminar
+          </button>
+          <button id="cancel-delete" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Cancelar
+          </button>
         </div>
+      </div>
     </div>
 
     <!-- Notificaciones -->
     <div id="notification" class="notification"></div>
 
     <script>
-        // ===== SISTEMA DE AUTENTICACIÓN Y NAVEGACIÓN =====
-        
+      // ===== SISTEMA DE AUTENTICACIÓN Y NAVEGACIÓN =====
+
+      // Verificar autenticación
+      function checkAuth() {
+        const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+        const currentUser = sessionStorage.getItem("currentUser");
+        const userRole = sessionStorage.getItem("userRole");
+
+        if (!isLoggedIn || !currentUser) {
+          // Redirigir a login si no está autenticado
+          window.location.href = "login.html";
+          return false;
+        }
+
+        // Actualizar información del usuario
+        document.getElementById("user-name").textContent = currentUser;
+        document.getElementById("user-role").textContent = userRole;
+        document.getElementById(
+          "footer-user"
+        ).textContent = `${currentUser} (${userRole})`;
+
+        // Personalizar mensaje de bienvenida
+        const welcomeMessage = document.getElementById("welcome-message");
+        const hour = new Date().getHours();
+        let greeting = "";
+
+        if (hour < 12) greeting = "Buenos días";
+        else if (hour < 19) greeting = "Buenas tardes";
+        else greeting = "Buenas noches";
+
+        welcomeMessage.textContent = `${greeting}, ${currentUser}. Bienvenido al Sistema de Control de Egresados`;
+
+        return true;
+      }
+
+      // Actualizar fecha y hora
+      function updateDateTime() {
+        const now = new Date();
+        const options = {
+          weekday: "long",
+          year: "numeric",
+          month: "long",
+          day: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        };
+
+        document.getElementById("current-date").textContent =
+          now.toLocaleDateString("es-ES", options);
+
+        document.getElementById("last-update").textContent =
+          now.toLocaleTimeString("es-ES", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+      }
+
+      // Cerrar sesión
+      function logout() {
+        if (confirm("¿Estás seguro de que deseas cerrar sesión?")) {
+          // Mostrar mensaje de despedida
+          const notification = document.getElementById("notification");
+          if (notification) {
+            notification.textContent = "Cerrando sesión...";
+            notification.className = "notification info";
+            notification.style.display = "block";
+          }
+
+          // Limpiar sesión y redirigir
+          setTimeout(() => {
+            sessionStorage.clear();
+            localStorage.removeItem("rememberedUser");
+            window.location.href = "index.html";
+          }, 1000);
+        }
+      }
+
+      // Navegación del menú
+      function setupNavigation() {
+        // Menú activo
+        const currentPage = window.location.pathname.split("/").pop();
+        const menuItems = document.querySelectorAll(".nav-menu a");
+
+        menuItems.forEach((item) => {
+          if (
+            item.getAttribute("href") === "#" &&
+            currentPage === "dashboard.html"
+          ) {
+            item.classList.add("active");
+          }
+
+          item.addEventListener("click", function (e) {
+            if (this.getAttribute("href") === "#") {
+              e.preventDefault();
+              menuItems.forEach((i) => i.classList.remove("active"));
+              this.classList.add("active");
+            }
+          });
+        });
+
+        // Botón de logout
+        document.getElementById("btn-logout").addEventListener("click", logout);
+      }
+
+      // ===== INICIALIZACIÓN =====
+      document.addEventListener("DOMContentLoaded", function () {
         // Verificar autenticación
-        function checkAuth() {
-            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            const currentUser = sessionStorage.getItem('currentUser');
-            const userRole = sessionStorage.getItem('userRole');
-            
-            if (!isLoggedIn || !currentUser) {
-                // Redirigir a login si no está autenticado
-                window.location.href = 'login.html';
-                return false;
-            }
-            
-            // Actualizar información del usuario
-            document.getElementById('user-name').textContent = currentUser;
-            document.getElementById('user-role').textContent = userRole;
-            document.getElementById('footer-user').textContent = `${currentUser} (${userRole})`;
-            
-            // Personalizar mensaje de bienvenida
-            const welcomeMessage = document.getElementById('welcome-message');
-            const hour = new Date().getHours();
-            let greeting = '';
-            
-            if (hour < 12) greeting = 'Buenos días';
-            else if (hour < 19) greeting = 'Buenas tardes';
-            else greeting = 'Buenas noches';
-            
-            welcomeMessage.textContent = `${greeting}, ${currentUser}. Bienvenido al Sistema de Control de Egresados`;
-            
-            return true;
+        if (!checkAuth()) {
+          return;
         }
-        
-        // Actualizar fecha y hora
-        function updateDateTime() {
-            const now = new Date();
-            const options = { 
-                weekday: 'long', 
-                year: 'numeric', 
-                month: 'long', 
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            };
-            
-            document.getElementById('current-date').textContent = 
-                now.toLocaleDateString('es-ES', options);
-            
-            document.getElementById('last-update').textContent = 
-                now.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit' });
+
+        // Configurar navegación
+        setupNavigation();
+
+        // Actualizar fecha y hora cada minuto
+        updateDateTime();
+        setInterval(updateDateTime, 60000);
+
+        // Asegurar que el modal esté oculto
+        const modal = document.getElementById("delete-modal");
+        if (modal) {
+          modal.style.display = "none";
+          modal.classList.remove("active");
         }
-        
-        // Cerrar sesión
-        function logout() {
-            if (confirm('¿Estás seguro de que deseas cerrar sesión?')) {
-                // Mostrar mensaje de despedida
-                const notification = document.getElementById('notification');
-                if (notification) {
-                    notification.textContent = 'Cerrando sesión...';
-                    notification.className = 'notification info';
-                    notification.style.display = 'block';
-                }
-                
-                // Limpiar sesión y redirigir
-                setTimeout(() => {
-                    sessionStorage.clear();
-                    localStorage.removeItem('rememberedUser');
-                    window.location.href = 'index.html';
-                }, 1000);
-            }
-        }
-        
-        // Navegación del menú
-        function setupNavigation() {
-            // Menú activo
-            const currentPage = window.location.pathname.split('/').pop();
-            const menuItems = document.querySelectorAll('.nav-menu a');
-            
-            menuItems.forEach(item => {
-                if (item.getAttribute('href') === '#' && currentPage === 'dashboard.html') {
-                    item.classList.add('active');
-                }
-                
-                item.addEventListener('click', function(e) {
-                    if (this.getAttribute('href') === '#') {
-                        e.preventDefault();
-                        menuItems.forEach(i => i.classList.remove('active'));
-                        this.classList.add('active');
-                    }
-                });
+
+        // Remover cualquier clase 'active' que pueda tener
+        setTimeout(() => {
+          if (modal && modal.classList.contains("active")) {
+            modal.classList.remove("active");
+            modal.style.display = "none";
+          }
+        }, 100);
+
+        // Configurar botón de ejemplo solo en desarrollo
+        if (
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+        ) {
+          const exampleBtn = document.getElementById("example-btn");
+          if (exampleBtn) {
+            exampleBtn.style.display = "inline-flex";
+            exampleBtn.addEventListener("click", () => {
+              if (window.app && window.app.cargarDatosEjemplo) {
+                window.app.cargarDatosEjemplo();
+              }
             });
-            
-            // Botón de logout
-            document.getElementById('btn-logout').addEventListener('click', logout);
+          }
         }
-        
-        // ===== INICIALIZACIÓN =====
-        document.addEventListener('DOMContentLoaded', function() {
-            // Verificar autenticación
-            if (!checkAuth()) {
-                return;
-            }
-            
-            // Configurar navegación
-            setupNavigation();
-            
-            // Actualizar fecha y hora cada minuto
-            updateDateTime();
-            setInterval(updateDateTime, 60000);
-            
-            // Asegurar que el modal esté oculto
-            const modal = document.getElementById('delete-modal');
-            if (modal) {
-                modal.style.display = 'none';
-                modal.classList.remove('active');
-            }
-            
-            // Remover cualquier clase 'active' que pueda tener
+
+        // Mostrar mensaje de bienvenida
+        setTimeout(() => {
+          const notification = document.getElementById("notification");
+          if (notification) {
+            notification.textContent =
+              "Sistema cargado correctamente. ¡Bienvenido!";
+            notification.className = "notification success";
+            notification.style.display = "block";
+
             setTimeout(() => {
-                if (modal && modal.classList.contains('active')) {
-                    modal.classList.remove('active');
-                    modal.style.display = 'none';
-                }
-            }, 100);
-            
-            // Configurar botón de ejemplo solo en desarrollo
-            if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-                const exampleBtn = document.getElementById('example-btn');
-                if (exampleBtn) {
-                    exampleBtn.style.display = 'inline-flex';
-                    exampleBtn.addEventListener('click', () => {
-                        if (window.app && window.app.cargarDatosEjemplo) {
-                            window.app.cargarDatosEjemplo();
-                        }
-                    });
-                }
-            }
-            
-            // Mostrar mensaje de bienvenida
-            setTimeout(() => {
-                const notification = document.getElementById('notification');
-                if (notification) {
-                    notification.textContent = 'Sistema cargado correctamente. ¡Bienvenido!';
-                    notification.className = 'notification success';
-                    notification.style.display = 'block';
-                    
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                    }, 3000);
-                }
-            }, 1000);
-        });
-        
-        // ===== PROTECCIÓN DE RUTAS =====
-        // Verificar autenticación antes de abandonar la página
-        window.addEventListener('beforeunload', function(e) {
-            const isLoggedIn = sessionStorage.getItem('isLoggedIn');
-            if (isLoggedIn) {
-                // Guardar timestamp de última actividad
-                sessionStorage.setItem('lastActivity', new Date().getTime());
-            }
-        });
-        
-        // Verificar inactividad (30 minutos)
-        function checkInactivity() {
-            const lastActivity = sessionStorage.getItem('lastActivity');
-            if (lastActivity) {
-                const currentTime = new Date().getTime();
-                const inactiveTime = currentTime - parseInt(lastActivity);
-                const thirtyMinutes = 30 * 60 * 1000;
-                
-                if (inactiveTime > thirtyMinutes) {
-                    alert('Tu sesión ha expirado por inactividad.');
-                    sessionStorage.clear();
-                    window.location.href = 'login.html';
-                }
-            }
+              notification.style.display = "none";
+            }, 3000);
+          }
+        }, 1000);
+      });
+
+      // ===== PROTECCIÓN DE RUTAS =====
+      // Verificar autenticación antes de abandonar la página
+      window.addEventListener("beforeunload", function (e) {
+        const isLoggedIn = sessionStorage.getItem("isLoggedIn");
+        if (isLoggedIn) {
+          // Guardar timestamp de última actividad
+          sessionStorage.setItem("lastActivity", new Date().getTime());
         }
-        
-        // Verificar inactividad cada minuto
-        setInterval(checkInactivity, 60000);
-        
-        // Actualizar actividad en eventos del usuario
-        ['click', 'mousemove', 'keypress', 'scroll'].forEach(event => {
-            window.addEventListener(event, function() {
-                sessionStorage.setItem('lastActivity', new Date().getTime());
-            });
+      });
+
+      // Verificar inactividad (30 minutos)
+      function checkInactivity() {
+        const lastActivity = sessionStorage.getItem("lastActivity");
+        if (lastActivity) {
+          const currentTime = new Date().getTime();
+          const inactiveTime = currentTime - parseInt(lastActivity);
+          const thirtyMinutes = 30 * 60 * 1000;
+
+          if (inactiveTime > thirtyMinutes) {
+            alert("Tu sesión ha expirado por inactividad.");
+            sessionStorage.clear();
+            window.location.href = "login.html";
+          }
+        }
+      }
+
+      // Verificar inactividad cada minuto
+      setInterval(checkInactivity, 60000);
+
+      // Actualizar actividad en eventos del usuario
+      ["click", "mousemove", "keypress", "scroll"].forEach((event) => {
+        window.addEventListener(event, function () {
+          sessionStorage.setItem("lastActivity", new Date().getTime());
         });
+      });
     </script>
-    
+
     <script src="js/app.js"></script>
-</body>
+  </body>
 </html>
