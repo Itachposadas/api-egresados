@@ -195,29 +195,19 @@ class ControlEgresados {
             searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
         }
 
-        // Botones del modal de eliminar - USANDO EVENT LISTENERS DIRECTOS
+        // Botones del modal de eliminar
         const confirmDelete = document.getElementById('confirm-delete');
         const cancelDelete = document.getElementById('cancel-delete');
         const deleteModal = document.getElementById('delete-modal');
 
         if (confirmDelete) {
-            // Remover cualquier listener anterior y agregar uno nuevo
-            const newConfirmDelete = confirmDelete.cloneNode(true);
-            confirmDelete.parentNode.replaceChild(newConfirmDelete, confirmDelete);
-            
-            newConfirmDelete.addEventListener('click', () => {
-                console.log('Botón ELIMINAR clickeado, ID:', this.egresadoIdToDelete);
+            confirmDelete.addEventListener('click', () => {
                 this.eliminarEgresado();
             });
         }
 
         if (cancelDelete) {
-            // Remover cualquier listener anterior y agregar uno nuevo
-            const newCancelDelete = cancelDelete.cloneNode(true);
-            cancelDelete.parentNode.replaceChild(newCancelDelete, cancelDelete);
-            
-            newCancelDelete.addEventListener('click', () => {
-                console.log('Botón CANCELAR clickeado');
+            cancelDelete.addEventListener('click', () => {
                 this.ocultarModalEliminar();
             });
         }
@@ -230,8 +220,6 @@ class ControlEgresados {
                 }
             });
         }
-
-        // NOTA: Se han eliminado los event listeners para los botones de exportar CSV
     }
 
     async guardarEgresado(event) {
@@ -447,9 +435,12 @@ class ControlEgresados {
         const filas = document.querySelectorAll('#egresados-body tr');
         const busqueda = termino.toLowerCase().trim();
         this.lastSearchTerm = busqueda;
+        
+        // Limpiar array de filtrados
         this.filteredEgresados = [];
 
         if (!busqueda) {
+            // Mostrar todas las filas cuando no hay búsqueda
             filas.forEach(fila => {
                 fila.style.display = '';
             });
@@ -459,37 +450,35 @@ class ControlEgresados {
         }
 
         let encontrados = 0;
+        
         filas.forEach(fila => {
             const textoFila = fila.textContent.toLowerCase();
+            
             if (textoFila.includes(busqueda)) {
-                fila.style.display = '';
+                fila.style.display = '';  // Mostrar la fila
                 encontrados++;
-
+                
                 // Guardar datos del egresado filtrado
                 const id = fila.getAttribute('data-id');
-                const celdas = fila.querySelectorAll('td');
-                if (celdas.length >= 4) {
-                    const egresado = this.allEgresados.find(e => e._id === id);
-                    if (egresado) {
-                        this.filteredEgresados.push(egresado);
-                    }
+                const egresado = this.allEgresados.find(e => e._id === id);
+                if (egresado) {
+                    this.filteredEgresados.push(egresado);
                 }
             } else {
-                fila.style.display = 'none';
+                fila.style.display = 'none';  // Ocultar la fila
             }
         });
 
         // Actualizar contador de búsqueda
         const stats = document.getElementById('total-egresados');
-        if (stats && busqueda) {
-            stats.textContent = `Encontrados: ${encontrados} de ${this.allEgresados.length}`;
+        if (stats) {
+            if (busqueda) {
+                stats.textContent = `Encontrados: ${encontrados} de ${this.allEgresados.length}`;
+            } else {
+                stats.textContent = `Total: ${this.allEgresados.length}`;
+            }
         }
     }
-
-    // NOTA: Se han eliminado los métodos de exportación CSV:
-    // - exportarTodosCSV()
-    // - exportarFiltradosCSV()
-    // - descargarCSV()
 
     cargarDatosEjemplo() {
         const datosEjemplo = {
@@ -518,6 +507,4 @@ class ControlEgresados {
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ControlEgresados();
-    
-    // NOTA: Se ha eliminado el código que creaba los botones de exportación dinámicamente
 });
