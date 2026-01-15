@@ -1,7 +1,7 @@
 class ControlEgresados {
     constructor() {
         this.API_URL = window.location.hostname === 'localhost' 
-            ? 'https://api-egresados.onrender.com/api/egresados' 
+            ? 'http://localhost:5000/api/egresados' 
             : '/api/egresados';
         
         this.egresadoIdToDelete = null;
@@ -19,15 +19,6 @@ class ControlEgresados {
         
         this.cargarEgresados();
         this.setupEventListeners();
-        
-        // Configurar botón de ejemplo solo en desarrollo
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            const exampleBtn = document.getElementById('example-btn');
-            if (exampleBtn) {
-                exampleBtn.style.display = 'inline-flex';
-                exampleBtn.addEventListener('click', () => this.cargarDatosEjemplo());
-            }
-        }
     }
     
     async cargarEgresados() {
@@ -39,7 +30,8 @@ class ControlEgresados {
                 throw new Error(`Error HTTP: ${response.status}`);
             }
             
-            this.allEgresados = await response.json();
+            const data = await response.json();
+            this.allEgresados = data.egresados || data; // Compatible con ambas respuestas
             
             this.renderizarEgresados(this.allEgresados);
             this.actualizarEstadisticas(this.allEgresados.length);
@@ -65,23 +57,23 @@ class ControlEgresados {
         if (noData) noData.style.display = 'none';
         
         tbody.innerHTML = egresados.map(egresado => `
-            <tr data-id="${egresado._id}">
-                <td>${egresado.nombre} ${egresado.apellido}</td>
-                <td>${egresado.cedula}</td>
-                <td>${egresado.carrera}</td>
-                <td>${egresado.anoGraduacion}</td>
+            <tr data-id="${egresado.id || egresado._id}">
+                <td>${egresado.matricula || ''}</td>
+                <td>${egresado.nombre_completo || egresado.nombreCompleto || ''}</td>
+                <td>${egresado.carrera || ''}</td>
+                <td>${egresado.generacion || ''}</td>
+                <td>
+                    <span class="estatus-badge estatus-${(egresado.estatus || '').toLowerCase().replace(' ', '-')}">
+                        ${egresado.estatus || ''}
+                    </span>
+                </td>
                 <td>
                     <div class="action-buttons">
-                        <button class="btn btn-edit" data-id="${egresado._id}">
+                        <button class="btn btn-sm btn-edit" data-id="${egresado.id || egresado._id}">
                             <i class="fas fa-edit"></i> Editar
                         </button>
-                        <button class="btn btn-delete" data-id="${egresado._id}">
+                        <button class="btn btn-sm btn-delete" data-id="${egresado.id || egresado._id}">
                             <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                        <button class="btn btn-pdf" data-id="${egresado._id}" 
-                                data-nombre="${egresado.nombre}" 
-                                data-apellido="${egresado.apellido}">
-                            <i class="fas fa-file-pdf"></i> PDF
                         </button>
                     </div>
                 </td>
@@ -108,16 +100,6 @@ class ControlEgresados {
                 this.mostrarModalEliminar(id);
             });
         });
-        
-        // Botones de PDF
-        document.querySelectorAll('.btn-pdf').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const id = e.currentTarget.getAttribute('data-id');
-                const nombre = e.currentTarget.getAttribute('data-nombre');
-                const apellido = e.currentTarget.getAttribute('data-apellido');
-                await this.generarPDFIndividual(id, nombre, apellido);
-            });
-        });
     }
     
     async guardarEgresado(event) {
@@ -131,23 +113,25 @@ class ControlEgresados {
         }
         
         const formData = {
-            nombre: document.getElementById('nombre').value.trim(),
-            apellido: document.getElementById('apellido').value.trim(),
-            cedula: document.getElementById('cedula').value.trim(),
+            matricula: document.getElementById('matricula').value.trim(),
+            nombreCompleto: document.getElementById('nombreCompleto').value.trim(),
             carrera: document.getElementById('carrera').value,
-            anoGraduacion: parseInt(document.getElementById('anoGraduacion').value),
-            correo: document.getElementById('correo').value.trim(),
+            generacion: document.getElementById('generacion').value.trim(),
+            estatus: document.getElementById('estatus').value,
+            domicilio: document.getElementById('domicilio').value.trim(),
+            genero: document.getElementById('genero').value,
             telefono: document.getElementById('telefono').value.trim(),
-            empresaActual: document.getElementById('empresaActual').value.trim(),
-            puesto: document.getElementById('puesto').value.trim()
+            correo: document.getElementById('correo').value.trim()
         };
         
         try {
             let response;
+            let url;
             
             if (this.currentEditId) {
                 // Actualizar
-                response = await fetch(`${this.API_URL}/${this.currentEditId}`, {
+                url = `${this.API_URL}/${this.currentEditId}`;
+                response = await fetch(url, {
                     method: 'PUT',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -158,13 +142,14 @@ class ControlEgresados {
                 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.message || 'Error al actualizar');
+                    throw new Error(errorData.error || errorData.message || 'Error al actualizar');
                 }
                 
                 this.mostrarNotificacion('Egresado actualizado correctamente', 'success');
             } else {
                 // Crear nuevo
-                response = await fetch(this.API_URL, {
+                url = this.API_URL;
+                response = await fetch(url, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -175,7 +160,7 @@ class ControlEgresados {
                 
                 if (!response.ok) {
                     const errorData = await response.json();
-                    throw new Error(errorData.message || 'Error al crear');
+                    throw new Error(errorData.error || errorData.message || 'Error al crear');
                 }
                 
                 this.mostrarNotificacion('Egresado agregado correctamente', 'success');
@@ -192,31 +177,67 @@ class ControlEgresados {
     
     validarFormulario() {
         const errores = [];
-        const nombre = document.getElementById('nombre').value.trim();
-        const cedula = document.getElementById('cedula').value.trim();
-        const correo = document.getElementById('correo').value.trim();
-        const anoGraduacion = parseInt(document.getElementById('anoGraduacion').value);
+        
+        // Obtener valores
+        const matricula = document.getElementById('matricula').value.trim();
+        const nombreCompleto = document.getElementById('nombreCompleto').value.trim();
         const carrera = document.getElementById('carrera').value;
+        const generacion = document.getElementById('generacion').value.trim();
+        const estatus = document.getElementById('estatus').value;
+        const domicilio = document.getElementById('domicilio').value.trim();
+        const genero = document.getElementById('genero').value;
+        const correo = document.getElementById('correo').value.trim();
         
-        if (!nombre || nombre.length < 2) {
-            errores.push('El nombre debe tener al menos 2 caracteres');
+        // Validar matrícula (8 dígitos numéricos)
+        if (!matricula || !/^\d{8}$/.test(matricula)) {
+            errores.push('La matrícula debe tener exactamente 8 dígitos numéricos');
         }
         
-        if (!cedula || !/^\d+$/.test(cedula)) {
-            errores.push('La cédula debe contener solo números');
+        // Validar nombre completo
+        if (!nombreCompleto || nombreCompleto.length < 5) {
+            errores.push('El nombre completo debe tener al menos 5 caracteres');
         }
         
-        if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-            errores.push('Ingrese un correo electrónico válido');
-        }
-        
+        // Validar carrera
         if (!carrera) {
             errores.push('Seleccione una carrera');
         }
         
-        const anioActual = new Date().getFullYear();
-        if (!anoGraduacion || anoGraduacion < 2000 || anoGraduacion > anioActual) {
-            errores.push(`El año de graduación debe estar entre 2000 y ${anioActual}`);
+        // Validar generación (formato AAAA-AAAA)
+        if (!generacion || !/^\d{4}-\d{4}$/.test(generacion)) {
+            errores.push('La generación debe tener formato AAAA-AAAA (ej: 2014-2019)');
+        } else {
+            // Validar años razonables
+            const [inicio, fin] = generacion.split('-').map(Number);
+            const anioActual = new Date().getFullYear();
+            
+            if (inicio < 2000 || fin > anioActual + 5) {
+                errores.push(`Los años de generación deben estar entre 2000 y ${anioActual + 5}`);
+            }
+            
+            if (fin <= inicio) {
+                errores.push('El año final debe ser mayor al año inicial');
+            }
+        }
+        
+        // Validar estatus
+        if (!estatus) {
+            errores.push('Seleccione un estatus');
+        }
+        
+        // Validar domicilio
+        if (!domicilio || domicilio.length < 10) {
+            errores.push('El domicilio debe tener al menos 10 caracteres');
+        }
+        
+        // Validar género
+        if (!genero) {
+            errores.push('Seleccione un género');
+        }
+        
+        // Validar correo
+        if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+            errores.push('Ingrese un correo electrónico válido');
         }
         
         return errores;
@@ -234,16 +255,16 @@ class ControlEgresados {
             const egresado = await response.json();
             
             // Llenar formulario con datos
-            document.getElementById('egresado-id').value = egresado._id;
-            document.getElementById('nombre').value = egresado.nombre;
-            document.getElementById('apellido').value = egresado.apellido;
-            document.getElementById('cedula').value = egresado.cedula;
-            document.getElementById('correo').value = egresado.correo;
-            document.getElementById('carrera').value = egresado.carrera;
-            document.getElementById('anoGraduacion').value = egresado.anoGraduacion;
+            document.getElementById('egresado-id').value = egresado.id || egresado._id;
+            document.getElementById('matricula').value = egresado.matricula || '';
+            document.getElementById('nombreCompleto').value = egresado.nombre_completo || egresado.nombreCompleto || '';
+            document.getElementById('carrera').value = egresado.carrera || '';
+            document.getElementById('generacion').value = egresado.generacion || '';
+            document.getElementById('estatus').value = egresado.estatus || '';
+            document.getElementById('domicilio').value = egresado.domicilio || '';
+            document.getElementById('genero').value = egresado.genero || '';
             document.getElementById('telefono').value = egresado.telefono || '';
-            document.getElementById('empresaActual').value = egresado.empresaActual || '';
-            document.getElementById('puesto').value = egresado.puesto || '';
+            document.getElementById('correo').value = egresado.correo || '';
             
             // Cambiar título del formulario
             const formTitle = document.getElementById('form-title');
@@ -301,6 +322,7 @@ class ControlEgresados {
         this.egresadoIdToDelete = id;
         const modal = document.getElementById('delete-modal');
         if (modal) {
+            modal.classList.add('active');
             modal.style.display = 'flex';
         }
     }
@@ -314,7 +336,8 @@ class ControlEgresados {
             });
             
             if (!response.ok) {
-                throw new Error('Error al eliminar');
+                const errorData = await response.json();
+                throw new Error(errorData.error || errorData.message || 'Error al eliminar');
             }
             
             this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
@@ -322,7 +345,7 @@ class ControlEgresados {
             
         } catch (error) {
             console.error('Error eliminando egresado:', error);
-            this.mostrarNotificacion('Error al eliminar egresado', 'error');
+            this.mostrarNotificacion(error.message || 'Error al eliminar egresado', 'error');
         } finally {
             this.ocultarModalEliminar();
         }
@@ -332,6 +355,7 @@ class ControlEgresados {
         this.egresadoIdToDelete = null;
         const modal = document.getElementById('delete-modal');
         if (modal) {
+            modal.classList.remove('active');
             modal.style.display = 'none';
         }
     }
@@ -354,12 +378,55 @@ class ControlEgresados {
         const notification = document.getElementById('notification');
         if (!notification) {
             console.error('No se encontró el elemento de notificación');
-            return;
+            // Crear notificación si no existe
+            const newNotification = document.createElement('div');
+            newNotification.id = 'notification';
+            newNotification.className = `notification ${tipo}`;
+            newNotification.textContent = mensaje;
+            newNotification.style.cssText = `
+                position: fixed;
+                top: 20px;
+                right: 20px;
+                padding: 15px 20px;
+                border-radius: 8px;
+                color: white;
+                font-weight: 500;
+                z-index: 3000;
+                animation: slideIn 0.3s ease;
+                max-width: 350px;
+                box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            `;
+            
+            if (tipo === 'success') {
+                newNotification.style.background = 'linear-gradient(135deg, #2ecc71, #27ae60)';
+                newNotification.style.borderLeft = '4px solid #219653';
+            } else if (tipo === 'error') {
+                newNotification.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+                newNotification.style.borderLeft = '4px solid #d63031';
+            } else {
+                newNotification.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
+                newNotification.style.borderLeft = '4px solid #0984e3';
+            }
+            
+            document.body.appendChild(newNotification);
+            notification = newNotification;
         }
         
         notification.textContent = mensaje;
         notification.className = `notification ${tipo}`;
         notification.style.display = 'block';
+        
+        // Estilos según tipo
+        if (tipo === 'success') {
+            notification.style.background = 'linear-gradient(135deg, #2ecc71, #27ae60)';
+            notification.style.borderLeft = '4px solid #219653';
+        } else if (tipo === 'error') {
+            notification.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
+            notification.style.borderLeft = '4px solid #d63031';
+        } else {
+            notification.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
+            notification.style.borderLeft = '4px solid #0984e3';
+        }
         
         // Auto-ocultar después de 3 segundos
         setTimeout(() => {
@@ -368,61 +435,37 @@ class ControlEgresados {
     }
     
     buscarEgresados(termino) {
-        const filas = document.querySelectorAll('#egresados-body tr');
         const busqueda = termino.toLowerCase().trim();
         this.lastSearchTerm = busqueda;
         this.filteredEgresados = [];
         
         if (!busqueda) {
-            filas.forEach(fila => {
-                fila.style.display = '';
-            });
-            // Ocultar botón de exportar filtrados
-            const exportFilteredBtn = document.getElementById('export-filtered-btn');
-            if (exportFilteredBtn) {
-                exportFilteredBtn.style.display = 'none';
-            }
-            // Restaurar contador total
+            this.renderizarEgresados(this.allEgresados);
             this.actualizarEstadisticas(this.allEgresados.length);
             return;
         }
         
-        let encontrados = 0;
-        filas.forEach(fila => {
-            const textoFila = fila.textContent.toLowerCase();
-            if (textoFila.includes(busqueda)) {
-                fila.style.display = '';
-                encontrados++;
-                
-                // Guardar datos del egresado filtrado
-                const id = fila.getAttribute('data-id');
-                const celdas = fila.querySelectorAll('td');
-                if (celdas.length >= 4) {
-                    const egresado = this.allEgresados.find(e => e._id === id);
-                    if (egresado) {
-                        this.filteredEgresados.push(egresado);
-                    }
-                }
-            } else {
-                fila.style.display = 'none';
-            }
+        // Filtrar los egresados
+        const resultados = this.allEgresados.filter(egresado => {
+            const textoBusqueda = `
+                ${egresado.matricula || ''}
+                ${egresado.nombre_completo || egresado.nombreCompleto || ''}
+                ${egresado.carrera || ''}
+                ${egresado.generacion || ''}
+                ${egresado.estatus || ''}
+                ${egresado.correo || ''}
+            `.toLowerCase();
+            
+            return textoBusqueda.includes(busqueda);
         });
         
-        // Mostrar/ocultar botón de exportar filtrados
-        const exportFilteredBtn = document.getElementById('export-filtered-btn');
-        if (exportFilteredBtn) {
-            if (encontrados > 0) {
-                exportFilteredBtn.style.display = 'inline-flex';
-                exportFilteredBtn.innerHTML = `<i class="fas fa-filter"></i> Exportar Filtrados (${encontrados})`;
-            } else {
-                exportFilteredBtn.style.display = 'none';
-            }
-        }
+        this.filteredEgresados = resultados;
+        this.renderizarEgresados(resultados);
         
         // Actualizar contador de búsqueda
         const stats = document.getElementById('total-egresados');
         if (stats && busqueda) {
-            stats.textContent = `Encontrados: ${encontrados} de ${this.allEgresados.length}`;
+            stats.textContent = `Encontrados: ${resultados.length} de ${this.allEgresados.length}`;
         }
     }
     
@@ -438,13 +481,14 @@ class ControlEgresados {
                 return;
             }
             
-            // Crear CSV
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            // Crear CSV con nuevos campos
+            let csv = 'Matrícula,Nombre Completo,Carrera,Generación,Estatus,Domicilio,Género,Teléfono,Correo,Fecha Registro\n';
             
             this.allEgresados.forEach(egresado => {
-                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}",`;
-                csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
+                csv += `"${egresado.matricula || ''}","${egresado.nombre_completo || egresado.nombreCompleto || ''}","${egresado.carrera || ''}",`;
+                csv += `"${egresado.generacion || ''}","${egresado.estatus || ''}","${egresado.domicilio || ''}","${egresado.genero || ''}",`;
+                csv += `"${egresado.telefono || ''}","${egresado.correo || ''}",`;
+                csv += `"${new Date(egresado.fecha_registro || egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
             });
             
             // Descargar archivo
@@ -470,12 +514,13 @@ class ControlEgresados {
             this.mostrarLoading(true);
             
             // Crear CSV con datos filtrados
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            let csv = 'Matrícula,Nombre Completo,Carrera,Generación,Estatus,Domicilio,Género,Teléfono,Correo,Fecha Registro\n';
             
             this.filteredEgresados.forEach(egresado => {
-                csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.anoGraduacion || ''}","${egresado.correo || ''}","${egresado.telefono || ''}","${egresado.empresaActual || ''}","${egresado.puesto || ''}",`;
-                csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
+                csv += `"${egresado.matricula || ''}","${egresado.nombre_completo || egresado.nombreCompleto || ''}","${egresado.carrera || ''}",`;
+                csv += `"${egresado.generacion || ''}","${egresado.estatus || ''}","${egresado.domicilio || ''}","${egresado.genero || ''}",`;
+                csv += `"${egresado.telefono || ''}","${egresado.correo || ''}",`;
+                csv += `"${new Date(egresado.fecha_registro || egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
             });
             
             // Descargar archivo
@@ -489,262 +534,6 @@ class ControlEgresados {
         } finally {
             this.mostrarLoading(false);
         }
-    }
-    
-    // 3. Exportar PDF INDIVIDUAL
-    async generarPDFIndividual(id, nombre, apellido) {
-        try {
-            this.mostrarLoading(true);
-            
-            // Obtener datos del egresado
-            const response = await fetch(`${this.API_URL}/${id}`);
-            if (!response.ok) throw new Error('Error al obtener datos del egresado');
-            
-            const egresado = await response.json();
-            
-            // Crear contenido HTML para el PDF
-            const fecha = new Date().toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
-            const contenidoHTML = `
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Ficha de Egresado - ${egresado.nombre} ${egresado.apellido}</title>
-                    <style>
-                        body { 
-                            font-family: 'Segoe UI', Arial, sans-serif; 
-                            margin: 0;
-                            padding: 20px;
-                            color: #333;
-                            line-height: 1.6;
-                        }
-                        .container {
-                            max-width: 800px;
-                            margin: 0 auto;
-                            border: 2px solid #2c3e50;
-                            border-radius: 10px;
-                            padding: 30px;
-                            background: white;
-                        }
-                        .header {
-                            text-align: center;
-                            margin-bottom: 30px;
-                            padding-bottom: 20px;
-                            border-bottom: 3px solid #3498db;
-                        }
-                        .header h1 {
-                            color: #26b33bff;
-                            margin: 0 0 10px 0;
-                            font-size: 24px;
-                        }
-                        .header h2 {
-                            color: #3498db;
-                            margin: 0;
-                            font-size: 20px;
-                            font-weight: normal;
-                        }
-                        .section {
-                            margin-bottom: 25px;
-                        }
-                        .section-title {
-                            background: #26b33bff;
-                            color: white;
-                            padding: 10px 15px;
-                            border-radius: 5px;
-                            margin-bottom: 15px;
-                            font-size: 16px;
-                            font-weight: bold;
-                        }
-                        .info-grid {
-                            display: grid;
-                            grid-template-columns: 1fr 2fr;
-                            gap: 10px;
-                        }
-                        .info-item {
-                            margin-bottom: 12px;
-                        }
-                        .label {
-                            font-weight: bold;
-                            color: #555;
-                        }
-                        .value {
-                            color: #333;
-                        }
-                        .footer {
-                            margin-top: 40px;
-                            text-align: center;
-                            color: #7f8c8d;
-                            font-size: 12px;
-                            border-top: 1px solid #eee;
-                            padding-top: 20px;
-                        }
-                        .qr-placeholder {
-                            text-align: center;
-                            margin: 30px 0;
-                            padding: 20px;
-                            background: #f8f9fa;
-                            border-radius: 8px;
-                            border: 1px dashed #ddd;
-                        }
-                        .id-verification {
-                            font-family: monospace;
-                            background: #f8f9fa;
-                            padding: 8px 12px;
-                            border-radius: 4px;
-                            display: inline-block;
-                            margin-top: 10px;
-                            font-size: 12px;
-                        }
-                        @media print {
-                            body { 
-                                padding: 0; 
-                                font-size: 11pt;
-                            }
-                            .container {
-                                border: none;
-                                padding: 15px;
-                            }
-                            .no-print { display: none !important; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>UNIVERSIDAD MEXIQUENSE DEL BICENTENARIO</h1>
-                            <h2>Sistema de Control de Egresados</h2>
-                            <p style="color: #7f8c8d; margin-top: 10px;">
-                                Ficha de Egresado - Generada el ${fecha}
-                            </p>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">INFORMACIÓN PERSONAL</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="label">Nombre completo:</div>
-                                    <div class="value">${egresado.nombre} ${egresado.apellido}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Cédula:</div>
-                                    <div class="value">${egresado.cedula}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Correo electrónico:</div>
-                                    <div class="value">${egresado.correo}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Teléfono:</div>
-                                    <div class="value">${egresado.telefono || 'No registrado'}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">INFORMACIÓN ACADÉMICA</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="label">Carrera:</div>
-                                    <div class="value">${egresado.carrera}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Año de graduación:</div>
-                                    <div class="value">${egresado.anoGraduacion}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Fecha de registro:</div>
-                                    <div class="value">${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">INFORMACIÓN LABORAL</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="label">Empresa actual:</div>
-                                    <div class="value">${egresado.empresaActual || 'No registrada'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Puesto:</div>
-                                    <div class="value">${egresado.puesto || 'No registrado'}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="qr-placeholder">
-                            <p style="margin: 0; color: #666;">
-                                <strong>Código de verificación del egresado:</strong>
-                            </p>
-                            <div class="id-verification">ID: ${egresado._id}</div>
-                            <p style="margin-top: 15px; font-size: 11px; color: #888;">
-                                Este código puede ser utilizado para verificar la autenticidad de este documento
-                            </p>
-                        </div>
-                        
-                        <div class="footer">
-                            <p>© ${new Date().getFullYear()} Universidad Mexiquense del Bicentenario</p>
-                            <p>Este documento es generado automáticamente por el Sistema de Control de Egresados</p>
-                            <p>Documento válido únicamente para fines administrativos</p>
-                        </div>
-                    </div>
-                    
-                    <div class="no-print" style="text-align: center; margin-top: 20px;">
-                        <button onclick="window.print()" style="
-                            background: #28bc66ff;
-                            color: white;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 5px;
-                            cursor: pointer;
-                            font-size: 14px;
-                        ">
-                            📄 Imprimir / Guardar como PDF
-                        </button>
-                        <button onclick="window.close()" style="
-                            background: #e74c3c;
-                            color: white;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 5px;
-                            cursor: pointer;
-                            font-size: 14px;
-                            margin-left: 10px;
-                        ">
-                            ✕ Cerrar
-                        </button>
-                    </div>
-                </body>
-                </html>
-            `;
-            
-            // Abrir en nueva ventana para imprimir
-            this.abrirVentanaPDF(contenidoHTML, `${egresado.nombre}_${egresado.apellido}`);
-            
-        } catch (error) {
-            console.error('Error generando PDF:', error);
-            this.mostrarNotificacion('Error al generar PDF', 'error');
-        } finally {
-            this.mostrarLoading(false);
-        }
-    }
-    
-    abrirVentanaPDF(contenidoHTML, nombreArchivo) {
-        const ventana = window.open('', '_blank');
-        ventana.document.write(contenidoHTML);
-        ventana.document.close();
-        
-        // Guardar el nombre para referencia
-        ventana.archivoNombre = nombreArchivo;
-        
-        this.mostrarNotificacion('PDF generado. Puede imprimirlo o guardarlo como PDF.', 'info');
     }
     
     descargarCSV(csv, nombreBase) {
@@ -803,12 +592,6 @@ class ControlEgresados {
         const exportAllBtn = document.getElementById('export-all-btn');
         if (exportAllBtn) {
             exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
-        } else {
-            // Si no existe el botón específico, usar el genérico
-            const exportBtn = document.getElementById('export-btn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
-            }
         }
         
         // Botón exportar FILTRADOS
@@ -820,15 +603,15 @@ class ControlEgresados {
     
     cargarDatosEjemplo() {
         const datosEjemplo = {
-            nombre: 'Juan',
-            apellido: 'Pérez',
-            cedula: '12345678',
-            carrera: 'Ingeniería de Sistemas',
-            anoGraduacion: 2020,
-            correo: 'juan.perez@email.com',
-            telefono: '3001234567',
-            empresaActual: 'Tech Corp',
-            puesto: 'Desarrollador Senior'
+            matricula: '20230001',
+            nombreCompleto: 'Juan Pérez González',
+            carrera: 'Ingeniería en Sistemas Computacionales',
+            generacion: '2019-2023',
+            estatus: 'Titulado',
+            domicilio: 'Calle Principal #123, Ciudad, Estado',
+            genero: 'Masculino',
+            telefono: '5512345678',
+            correo: 'juan.perez@email.com'
         };
         
         Object.keys(datosEjemplo).forEach(key => {
@@ -845,38 +628,4 @@ class ControlEgresados {
 // Inicializar la aplicación cuando el DOM esté listo
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ControlEgresados();
-    
-    // Si no existen los botones específicos de exportación, crearlos
-    const stats = document.querySelector('.stats');
-    if (stats && !document.getElementById('export-all-btn')) {
-        // Crear contenedor de botones de exportación
-        const exportButtons = document.createElement('div');
-        exportButtons.className = 'export-buttons';
-        
-        // Botón exportar todos
-        const exportAllBtn = document.createElement('button');
-        exportAllBtn.id = 'export-all-btn';
-        exportAllBtn.className = 'btn btn-primary';
-        exportAllBtn.innerHTML = '<i class="fas fa-download"></i> Exportar Todos (CSV)';
-        exportAllBtn.onclick = () => window.app.exportarTodosCSV();
-        
-        // Botón exportar filtrados (inicialmente oculto)
-        const exportFilteredBtn = document.createElement('button');
-        exportFilteredBtn.id = 'export-filtered-btn';
-        exportFilteredBtn.className = 'btn btn-secondary';
-        exportFilteredBtn.style.display = 'none';
-        exportFilteredBtn.innerHTML = '<i class="fas fa-filter"></i> Exportar Filtrados';
-        exportFilteredBtn.onclick = () => window.app.exportarFiltradosCSV();
-        
-        exportButtons.appendChild(exportAllBtn);
-        exportButtons.appendChild(exportFilteredBtn);
-        
-        // Reemplazar el botón simple si existe
-        const oldExportBtn = document.getElementById('export-btn');
-        if (oldExportBtn) {
-            oldExportBtn.replaceWith(exportButtons);
-        } else {
-            stats.appendChild(exportButtons);
-        }
-    }
 });
