@@ -287,24 +287,36 @@ class ControlEgresados {
         const modal = document.getElementById('delete-modal');
         if (modal) {
             modal.style.display = 'flex';
+            // Configurar los botones del modal CADA VEZ que se muestra
+            this.configurarModalEliminar();
         }
     }
-
 
     configurarModalEliminar() {
         // Configurar el botón de confirmar eliminar
         const confirmDelete = document.getElementById('confirm-delete');
         if (confirmDelete) {
-            // Remover event listeners antiguos para evitar duplicados
-            confirmDelete.removeEventListener('click', this.eliminarEgresado.bind(this));
-            confirmDelete.addEventListener('click', () => this.eliminarEgresado());
+            // Primero remover cualquier event listener existente
+            const newConfirmDelete = confirmDelete.cloneNode(true);
+            confirmDelete.parentNode.replaceChild(newConfirmDelete, confirmDelete);
+            
+            // Agregar el event listener
+            newConfirmDelete.addEventListener('click', () => {
+                this.eliminarEgresado();
+            });
         }
 
         // Configurar el botón de cancelar eliminar
         const cancelDelete = document.getElementById('cancel-delete');
         if (cancelDelete) {
-            cancelDelete.removeEventListener('click', this.ocultarModalEliminar.bind(this));
-            cancelDelete.addEventListener('click', () => this.ocultarModalEliminar());
+            // Primero remover cualquier event listener existente
+            const newCancelDelete = cancelDelete.cloneNode(true);
+            cancelDelete.parentNode.replaceChild(newCancelDelete, cancelDelete);
+            
+            // Agregar el event listener
+            newCancelDelete.addEventListener('click', () => {
+                this.ocultarModalEliminar();
+            });
         }
     }
 
@@ -320,21 +332,22 @@ class ControlEgresados {
             );
 
             if (!response.ok) {
-                throw new Error('No se pudo eliminar');
+                const errorText = await response.text();
+                console.error('Error en respuesta:', response.status, errorText);
+                throw new Error(`No se pudo eliminar: ${response.status} ${errorText}`);
             }
 
             this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
             this.cargarEgresados();
 
         } catch (error) {
-            console.error(error);
-            this.mostrarNotificacion('Error al eliminar egresado', 'error');
+            console.error('Error eliminando egresado:', error);
+            this.mostrarNotificacion('Error al eliminar egresado: ' + error.message, 'error');
         } finally {
             this.ocultarModalEliminar();
             this.mostrarLoading(false);
         }
     }
-
 
     ocultarModalEliminar() {
         this.egresadoIdToDelete = null;
@@ -343,7 +356,6 @@ class ControlEgresados {
             modal.style.display = 'none';
         }
     }
-
 
     actualizarEstadisticas(total) {
         const stats = document.getElementById('total-egresados');
@@ -530,9 +542,6 @@ class ControlEgresados {
         if (searchInput) {
             searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
         }
-
-        // Modal eliminar (configuración inicial)
-        this.configurarModalEliminar();
 
         // Cerrar modal haciendo clic fuera
         const deleteModal = document.getElementById('delete-modal');
