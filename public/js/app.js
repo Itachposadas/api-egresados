@@ -78,11 +78,6 @@ class ControlEgresados {
                         <button class="btn btn-delete" data-id="${egresado._id}">
                             <i class="fas fa-trash"></i> Eliminar
                         </button>
-                        <button class="btn btn-pdf" data-id="${egresado._id}" 
-                                data-nombre="${egresado.nombre}" 
-                                data-apellido="${egresado.apellido}">
-                            <i class="fas fa-file-pdf"></i> PDF
-                        </button>
                     </div>
                 </td>
             </tr>
@@ -106,16 +101,6 @@ class ControlEgresados {
             btn.addEventListener('click', (e) => {
                 const id = e.currentTarget.getAttribute('data-id');
                 this.mostrarModalEliminar(id);
-            });
-        });
-        
-        // Botones de PDF
-        document.querySelectorAll('.btn-pdf').forEach(btn => {
-            btn.addEventListener('click', async (e) => {
-                const id = e.currentTarget.getAttribute('data-id');
-                const nombre = e.currentTarget.getAttribute('data-nombre');
-                const apellido = e.currentTarget.getAttribute('data-apellido');
-                await this.generarPDFIndividual(id, nombre, apellido);
             });
         });
     }
@@ -302,6 +287,25 @@ class ControlEgresados {
         const modal = document.getElementById('delete-modal');
         if (modal) {
             modal.style.display = 'flex';
+            // Asegurar que los botones del modal tengan event listeners
+            this.configurarModalEliminar();
+        }
+    }
+    
+    configurarModalEliminar() {
+        // Configurar el botón de confirmar eliminar
+        const confirmDelete = document.getElementById('confirm-delete');
+        if (confirmDelete) {
+            // Remover event listeners antiguos para evitar duplicados
+            confirmDelete.removeEventListener('click', this.eliminarEgresado.bind(this));
+            confirmDelete.addEventListener('click', () => this.eliminarEgresado());
+        }
+        
+        // Configurar el botón de cancelar eliminar
+        const cancelDelete = document.getElementById('cancel-delete');
+        if (cancelDelete) {
+            cancelDelete.removeEventListener('click', this.ocultarModalEliminar.bind(this));
+            cancelDelete.addEventListener('click', () => this.ocultarModalEliminar());
         }
     }
     
@@ -309,22 +313,30 @@ class ControlEgresados {
         if (!this.egresadoIdToDelete) return;
         
         try {
+            this.mostrarLoading(true);
             const response = await fetch(`${this.API_URL}/${this.egresadoIdToDelete}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'Accept': 'application/json'
+                }
             });
             
             if (!response.ok) {
-                throw new Error('Error al eliminar');
+                const errorText = await response.text();
+                throw new Error(`Error ${response.status}: ${errorText}`);
             }
+            
+            const result = await response.json();
             
             this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
             this.cargarEgresados();
             
         } catch (error) {
             console.error('Error eliminando egresado:', error);
-            this.mostrarNotificacion('Error al eliminar egresado', 'error');
+            this.mostrarNotificacion('Error al eliminar egresado: ' + error.message, 'error');
         } finally {
             this.ocultarModalEliminar();
+            this.mostrarLoading(false);
         }
     }
     
@@ -491,262 +503,6 @@ class ControlEgresados {
         }
     }
     
-    // 3. Exportar PDF INDIVIDUAL
-    async generarPDFIndividual(id, nombre, apellido) {
-        try {
-            this.mostrarLoading(true);
-            
-            // Obtener datos del egresado
-            const response = await fetch(`${this.API_URL}/${id}`);
-            if (!response.ok) throw new Error('Error al obtener datos del egresado');
-            
-            const egresado = await response.json();
-            
-            // Crear contenido HTML para el PDF
-            const fecha = new Date().toLocaleDateString('es-ES', {
-                year: 'numeric',
-                month: 'long',
-                day: 'numeric',
-                hour: '2-digit',
-                minute: '2-digit'
-            });
-            
-            const contenidoHTML = `
-                <!DOCTYPE html>
-                <html lang="es">
-                <head>
-                    <meta charset="UTF-8">
-                    <title>Ficha de Egresado - ${egresado.nombre} ${egresado.apellido}</title>
-                    <style>
-                        body { 
-                            font-family: 'Segoe UI', Arial, sans-serif; 
-                            margin: 0;
-                            padding: 20px;
-                            color: #333;
-                            line-height: 1.6;
-                        }
-                        .container {
-                            max-width: 800px;
-                            margin: 0 auto;
-                            border: 2px solid #2c3e50;
-                            border-radius: 10px;
-                            padding: 30px;
-                            background: white;
-                        }
-                        .header {
-                            text-align: center;
-                            margin-bottom: 30px;
-                            padding-bottom: 20px;
-                            border-bottom: 3px solid #3498db;
-                        }
-                        .header h1 {
-                            color: #26b33bff;
-                            margin: 0 0 10px 0;
-                            font-size: 24px;
-                        }
-                        .header h2 {
-                            color: #3498db;
-                            margin: 0;
-                            font-size: 20px;
-                            font-weight: normal;
-                        }
-                        .section {
-                            margin-bottom: 25px;
-                        }
-                        .section-title {
-                            background: #26b33bff;
-                            color: white;
-                            padding: 10px 15px;
-                            border-radius: 5px;
-                            margin-bottom: 15px;
-                            font-size: 16px;
-                            font-weight: bold;
-                        }
-                        .info-grid {
-                            display: grid;
-                            grid-template-columns: 1fr 2fr;
-                            gap: 10px;
-                        }
-                        .info-item {
-                            margin-bottom: 12px;
-                        }
-                        .label {
-                            font-weight: bold;
-                            color: #555;
-                        }
-                        .value {
-                            color: #333;
-                        }
-                        .footer {
-                            margin-top: 40px;
-                            text-align: center;
-                            color: #7f8c8d;
-                            font-size: 12px;
-                            border-top: 1px solid #eee;
-                            padding-top: 20px;
-                        }
-                        .qr-placeholder {
-                            text-align: center;
-                            margin: 30px 0;
-                            padding: 20px;
-                            background: #f8f9fa;
-                            border-radius: 8px;
-                            border: 1px dashed #ddd;
-                        }
-                        .id-verification {
-                            font-family: monospace;
-                            background: #f8f9fa;
-                            padding: 8px 12px;
-                            border-radius: 4px;
-                            display: inline-block;
-                            margin-top: 10px;
-                            font-size: 12px;
-                        }
-                        @media print {
-                            body { 
-                                padding: 0; 
-                                font-size: 11pt;
-                            }
-                            .container {
-                                border: none;
-                                padding: 15px;
-                            }
-                            .no-print { display: none !important; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header">
-                            <h1>UNIVERSIDAD MEXIQUENSE DEL BICENTENARIO</h1>
-                            <h2>Sistema de Control de Egresados</h2>
-                            <p style="color: #7f8c8d; margin-top: 10px;">
-                                Ficha de Egresado - Generada el ${fecha}
-                            </p>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">INFORMACIÓN PERSONAL</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="label">Nombre completo:</div>
-                                    <div class="value">${egresado.nombre} ${egresado.apellido}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Cédula:</div>
-                                    <div class="value">${egresado.cedula}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Correo electrónico:</div>
-                                    <div class="value">${egresado.correo}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Teléfono:</div>
-                                    <div class="value">${egresado.telefono || 'No registrado'}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">INFORMACIÓN ACADÉMICA</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="label">Carrera:</div>
-                                    <div class="value">${egresado.carrera}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Año de graduación:</div>
-                                    <div class="value">${egresado.anoGraduacion}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Fecha de registro:</div>
-                                    <div class="value">${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="section">
-                            <div class="section-title">INFORMACIÓN LABORAL</div>
-                            <div class="info-grid">
-                                <div class="info-item">
-                                    <div class="label">Empresa actual:</div>
-                                    <div class="value">${egresado.empresaActual || 'No registrada'}</div>
-                                </div>
-                                <div class="info-item">
-                                    <div class="label">Puesto:</div>
-                                    <div class="value">${egresado.puesto || 'No registrado'}</div>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div class="qr-placeholder">
-                            <p style="margin: 0; color: #666;">
-                                <strong>Código de verificación del egresado:</strong>
-                            </p>
-                            <div class="id-verification">ID: ${egresado._id}</div>
-                            <p style="margin-top: 15px; font-size: 11px; color: #888;">
-                                Este código puede ser utilizado para verificar la autenticidad de este documento
-                            </p>
-                        </div>
-                        
-                        <div class="footer">
-                            <p>© ${new Date().getFullYear()} Universidad Mexiquense del Bicentenario</p>
-                            <p>Este documento es generado automáticamente por el Sistema de Control de Egresados</p>
-                            <p>Documento válido únicamente para fines administrativos</p>
-                        </div>
-                    </div>
-                    
-                    <div class="no-print" style="text-align: center; margin-top: 20px;">
-                        <button onclick="window.print()" style="
-                            background: #28bc66ff;
-                            color: white;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 5px;
-                            cursor: pointer;
-                            font-size: 14px;
-                        ">
-                            📄 Imprimir / Guardar como PDF
-                        </button>
-                        <button onclick="window.close()" style="
-                            background: #e74c3c;
-                            color: white;
-                            border: none;
-                            padding: 10px 20px;
-                            border-radius: 5px;
-                            cursor: pointer;
-                            font-size: 14px;
-                            margin-left: 10px;
-                        ">
-                            ✕ Cerrar
-                        </button>
-                    </div>
-                </body>
-                </html>
-            `;
-            
-            // Abrir en nueva ventana para imprimir
-            this.abrirVentanaPDF(contenidoHTML, `${egresado.nombre}_${egresado.apellido}`);
-            
-        } catch (error) {
-            console.error('Error generando PDF:', error);
-            this.mostrarNotificacion('Error al generar PDF', 'error');
-        } finally {
-            this.mostrarLoading(false);
-        }
-    }
-    
-    abrirVentanaPDF(contenidoHTML, nombreArchivo) {
-        const ventana = window.open('', '_blank');
-        ventana.document.write(contenidoHTML);
-        ventana.document.close();
-        
-        // Guardar el nombre para referencia
-        ventana.archivoNombre = nombreArchivo;
-        
-        this.mostrarNotificacion('PDF generado. Puede imprimirlo o guardarlo como PDF.', 'info');
-    }
-    
     descargarCSV(csv, nombreBase) {
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
         const url = URL.createObjectURL(blob);
@@ -778,16 +534,8 @@ class ControlEgresados {
             searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
         }
         
-        // Modal eliminar
-        const confirmDelete = document.getElementById('confirm-delete');
-        if (confirmDelete) {
-            confirmDelete.addEventListener('click', () => this.eliminarEgresado());
-        }
-        
-        const cancelDelete = document.getElementById('cancel-delete');
-        if (cancelDelete) {
-            cancelDelete.addEventListener('click', () => this.ocultarModalEliminar());
-        }
+        // Modal eliminar (configuración inicial)
+        this.configurarModalEliminar();
         
         // Cerrar modal haciendo clic fuera
         const deleteModal = document.getElementById('delete-modal');
