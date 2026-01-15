@@ -14,20 +14,8 @@ class ControlEgresados {
     }
 
     init() {
-        // Asegurar que el modal esté oculto al inicio
-        this.ocultarModalEliminar();
-
         this.cargarEgresados();
         this.setupEventListeners();
-
-        // Configurar botón de ejemplo solo en desarrollo
-        if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
-            const exampleBtn = document.getElementById('example-btn');
-            if (exampleBtn) {
-                exampleBtn.style.display = 'inline-flex';
-                exampleBtn.addEventListener('click', () => this.cargarDatosEjemplo());
-            }
-        }
     }
 
     async cargarEgresados() {
@@ -104,6 +92,140 @@ class ControlEgresados {
             });
         });
     }
+
+    mostrarModalEliminar(id) {
+        this.egresadoIdToDelete = id;
+        const modal = document.getElementById('delete-modal');
+        if (modal) {
+            // Usar classList para evitar conflicto con el !important del CSS
+            modal.classList.add('active');
+        }
+    }
+
+    ocultarModalEliminar() {
+        this.egresadoIdToDelete = null;
+        const modal = document.getElementById('delete-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    async eliminarEgresado() {
+        if (!this.egresadoIdToDelete) {
+            this.mostrarNotificacion('No hay egresado seleccionado para eliminar', 'error');
+            return;
+        }
+
+        try {
+            this.mostrarLoading(true);
+
+            const response = await fetch(
+                `${this.API_URL}/${this.egresadoIdToDelete}`,
+                { 
+                    method: 'DELETE',
+                    headers: {
+                        'Accept': 'application/json'
+                    }
+                }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error del servidor:', response.status, errorText);
+                throw new Error(`Error del servidor: ${response.status}`);
+            }
+
+            const result = await response.json();
+            console.log('Respuesta del servidor:', result);
+
+            this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
+            this.cargarEgresados();
+
+        } catch (error) {
+            console.error('Error eliminando egresado:', error);
+            this.mostrarNotificacion('Error al eliminar egresado: ' + error.message, 'error');
+        } finally {
+            this.ocultarModalEliminar();
+            this.mostrarLoading(false);
+        }
+    }
+
+    // ... (otros métodos permanecen igual hasta setupEventListeners)
+
+    setupEventListeners() {
+        // Formulario
+        const form = document.getElementById('egresado-form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.guardarEgresado(e));
+        }
+
+        // Botón cancelar
+        const cancelBtn = document.getElementById('cancel-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.cancelarEdicion());
+        }
+
+        // Búsqueda
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
+        }
+
+        // Botones del modal de eliminar - USANDO EVENT LISTENERS DIRECTOS
+        const confirmDelete = document.getElementById('confirm-delete');
+        const cancelDelete = document.getElementById('cancel-delete');
+        const deleteModal = document.getElementById('delete-modal');
+
+        if (confirmDelete) {
+            // Remover cualquier listener anterior y agregar uno nuevo
+            const newConfirmDelete = confirmDelete.cloneNode(true);
+            confirmDelete.parentNode.replaceChild(newConfirmDelete, confirmDelete);
+            
+            newConfirmDelete.addEventListener('click', () => {
+                console.log('Botón ELIMINAR clickeado, ID:', this.egresadoIdToDelete);
+                this.eliminarEgresado();
+            });
+        }
+
+        if (cancelDelete) {
+            // Remover cualquier listener anterior y agregar uno nuevo
+            const newCancelDelete = cancelDelete.cloneNode(true);
+            cancelDelete.parentNode.replaceChild(newCancelDelete, cancelDelete);
+            
+            newCancelDelete.addEventListener('click', () => {
+                console.log('Botón CANCELAR clickeado');
+                this.ocultarModalEliminar();
+            });
+        }
+
+        if (deleteModal) {
+            // Cerrar modal al hacer clic fuera
+            deleteModal.addEventListener('click', (e) => {
+                if (e.target === deleteModal) {
+                    this.ocultarModalEliminar();
+                }
+            });
+        }
+
+        // Botón exportar TODOS
+        const exportAllBtn = document.getElementById('export-all-btn');
+        if (exportAllBtn) {
+            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
+        } else {
+            const exportBtn = document.getElementById('export-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
+            }
+        }
+
+        // Botón exportar FILTRADOS
+        const exportFilteredBtn = document.getElementById('export-filtered-btn');
+        if (exportFilteredBtn) {
+            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
+        }
+    }
+
+    // ... (mantén todos los demás métodos igual)
 
     async guardarEgresado(event) {
         event.preventDefault();
@@ -282,81 +404,6 @@ class ControlEgresados {
         this.currentEditId = null;
     }
 
-    mostrarModalEliminar(id) {
-        this.egresadoIdToDelete = id;
-        const modal = document.getElementById('delete-modal');
-        if (modal) {
-            modal.style.display = 'flex';
-            // Configurar los botones del modal CADA VEZ que se muestra
-            this.configurarModalEliminar();
-        }
-    }
-
-    configurarModalEliminar() {
-        // Configurar el botón de confirmar eliminar
-        const confirmDelete = document.getElementById('confirm-delete');
-        if (confirmDelete) {
-            // Primero remover cualquier event listener existente
-            const newConfirmDelete = confirmDelete.cloneNode(true);
-            confirmDelete.parentNode.replaceChild(newConfirmDelete, confirmDelete);
-            
-            // Agregar el event listener
-            newConfirmDelete.addEventListener('click', () => {
-                this.eliminarEgresado();
-            });
-        }
-
-        // Configurar el botón de cancelar eliminar
-        const cancelDelete = document.getElementById('cancel-delete');
-        if (cancelDelete) {
-            // Primero remover cualquier event listener existente
-            const newCancelDelete = cancelDelete.cloneNode(true);
-            cancelDelete.parentNode.replaceChild(newCancelDelete, cancelDelete);
-            
-            // Agregar el event listener
-            newCancelDelete.addEventListener('click', () => {
-                this.ocultarModalEliminar();
-            });
-        }
-    }
-
-    async eliminarEgresado() {
-        if (!this.egresadoIdToDelete) return;
-
-        try {
-            this.mostrarLoading(true);
-
-            const response = await fetch(
-                `${this.API_URL}/${this.egresadoIdToDelete}`,
-                { method: 'DELETE' }
-            );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Error en respuesta:', response.status, errorText);
-                throw new Error(`No se pudo eliminar: ${response.status} ${errorText}`);
-            }
-
-            this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
-            this.cargarEgresados();
-
-        } catch (error) {
-            console.error('Error eliminando egresado:', error);
-            this.mostrarNotificacion('Error al eliminar egresado: ' + error.message, 'error');
-        } finally {
-            this.ocultarModalEliminar();
-            this.mostrarLoading(false);
-        }
-    }
-
-    ocultarModalEliminar() {
-        this.egresadoIdToDelete = null;
-        const modal = document.getElementById('delete-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
     actualizarEstadisticas(total) {
         const stats = document.getElementById('total-egresados');
         if (stats) {
@@ -447,9 +494,6 @@ class ControlEgresados {
         }
     }
 
-    // ===== MÉTODOS DE EXPORTACIÓN =====
-
-    // 1. Exportar TODOS los egresados (CSV)
     async exportarTodosCSV() {
         try {
             this.mostrarLoading(true);
@@ -480,7 +524,6 @@ class ControlEgresados {
         }
     }
 
-    // 2. Exportar solo los egresados FILTRADOS (CSV)
     async exportarFiltradosCSV() {
         if (this.filteredEgresados.length === 0) {
             this.mostrarNotificacion('No hay egresados filtrados para exportar', 'warning');
@@ -524,54 +567,6 @@ class ControlEgresados {
         URL.revokeObjectURL(url);
     }
 
-    setupEventListeners() {
-        // Formulario
-        const form = document.getElementById('egresado-form');
-        if (form) {
-            form.addEventListener('submit', (e) => this.guardarEgresado(e));
-        }
-
-        // Botón cancelar
-        const cancelBtn = document.getElementById('cancel-btn');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => this.cancelarEdicion());
-        }
-
-        // Búsqueda
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
-        }
-
-        // Cerrar modal haciendo clic fuera
-        const deleteModal = document.getElementById('delete-modal');
-        if (deleteModal) {
-            deleteModal.addEventListener('click', (e) => {
-                if (e.target.id === 'delete-modal') {
-                    this.ocultarModalEliminar();
-                }
-            });
-        }
-
-        // Botón exportar TODOS
-        const exportAllBtn = document.getElementById('export-all-btn');
-        if (exportAllBtn) {
-            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
-        } else {
-            // Si no existe el botón específico, usar el genérico
-            const exportBtn = document.getElementById('export-btn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
-            }
-        }
-
-        // Botón exportar FILTRADOS
-        const exportFilteredBtn = document.getElementById('export-filtered-btn');
-        if (exportFilteredBtn) {
-            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
-        }
-    }
-
     cargarDatosEjemplo() {
         const datosEjemplo = {
             nombre: 'Juan',
@@ -603,18 +598,15 @@ document.addEventListener('DOMContentLoaded', () => {
     // Si no existen los botones específicos de exportación, crearlos
     const stats = document.querySelector('.stats');
     if (stats && !document.getElementById('export-all-btn')) {
-        // Crear contenedor de botones de exportación
         const exportButtons = document.createElement('div');
         exportButtons.className = 'export-buttons';
 
-        // Botón exportar todos
         const exportAllBtn = document.createElement('button');
         exportAllBtn.id = 'export-all-btn';
         exportAllBtn.className = 'btn btn-primary';
         exportAllBtn.innerHTML = '<i class="fas fa-download"></i> Exportar Todos (CSV)';
         exportAllBtn.onclick = () => window.app.exportarTodosCSV();
 
-        // Botón exportar filtrados (inicialmente oculto)
         const exportFilteredBtn = document.createElement('button');
         exportFilteredBtn.id = 'export-filtered-btn';
         exportFilteredBtn.className = 'btn btn-secondary';
@@ -625,7 +617,6 @@ document.addEventListener('DOMContentLoaded', () => {
         exportButtons.appendChild(exportAllBtn);
         exportButtons.appendChild(exportFilteredBtn);
 
-        // Reemplazar el botón simple si existe
         const oldExportBtn = document.getElementById('export-btn');
         if (oldExportBtn) {
             oldExportBtn.replaceWith(exportButtons);
