@@ -14,8 +14,11 @@ class ControlEgresados {
     }
 
     init() {
-        // Asegurar que el modal esté oculto al inicio
-        this.ocultarModalEliminar();
+        // Ocultar el modal al inicio usando classList
+        const modal = document.getElementById('delete-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
 
         this.cargarEgresados();
         this.setupEventListeners();
@@ -105,6 +108,114 @@ class ControlEgresados {
         });
     }
 
+    // 🔧 CAMBIO 1 — mostrarModalEliminar (CORRECTO)
+    mostrarModalEliminar(id) {
+        this.egresadoIdToDelete = id;
+        const modal = document.getElementById('delete-modal');
+        if (modal) {
+            modal.classList.add('active');
+        }
+    }
+
+    // 🔧 CAMBIO 2 — ocultarModalEliminar (CORRECTO)
+    ocultarModalEliminar() {
+        this.egresadoIdToDelete = null;
+        const modal = document.getElementById('delete-modal');
+        if (modal) {
+            modal.classList.remove('active');
+        }
+    }
+
+    async eliminarEgresado() {
+        if (!this.egresadoIdToDelete) return;
+
+        try {
+            this.mostrarLoading(true);
+
+            const response = await fetch(
+                `${this.API_URL}/${this.egresadoIdToDelete}`,
+                { method: 'DELETE' }
+            );
+
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error('Error en respuesta:', response.status, errorText);
+                throw new Error(`No se pudo eliminar: ${response.status} ${errorText}`);
+            }
+
+            this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
+            this.cargarEgresados();
+
+        } catch (error) {
+            console.error('Error eliminando egresado:', error);
+            this.mostrarNotificacion('Error al eliminar egresado: ' + error.message, 'error');
+        } finally {
+            this.ocultarModalEliminar();
+            this.mostrarLoading(false);
+        }
+    }
+
+    setupEventListeners() {
+        // Formulario
+        const form = document.getElementById('egresado-form');
+        if (form) {
+            form.addEventListener('submit', (e) => this.guardarEgresado(e));
+        }
+
+        // Botón cancelar
+        const cancelBtn = document.getElementById('cancel-btn');
+        if (cancelBtn) {
+            cancelBtn.addEventListener('click', () => this.cancelarEdicion());
+        }
+
+        // Búsqueda
+        const searchInput = document.getElementById('search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
+        }
+
+        // 🔧 CAMBIO 4 — listeners del modal (UNA SOLA VEZ)
+        // ===== MODAL ELIMINAR =====
+        const confirmDelete = document.getElementById('confirm-delete');
+        if (confirmDelete) {
+            confirmDelete.addEventListener('click', () => {
+                this.eliminarEgresado();
+            });
+        }
+
+        const cancelDelete = document.getElementById('cancel-delete');
+        if (cancelDelete) {
+            cancelDelete.addEventListener('click', () => {
+                this.ocultarModalEliminar();
+            });
+        }
+
+        const deleteModal = document.getElementById('delete-modal');
+        if (deleteModal) {
+            deleteModal.addEventListener('click', (e) => {
+                if (e.target === deleteModal) {
+                    this.ocultarModalEliminar();
+                }
+            });
+        }
+
+        // Botones de exportación
+        const exportAllBtn = document.getElementById('export-all-btn');
+        if (exportAllBtn) {
+            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
+        } else {
+            const exportBtn = document.getElementById('export-btn');
+            if (exportBtn) {
+                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
+            }
+        }
+
+        const exportFilteredBtn = document.getElementById('export-filtered-btn');
+        if (exportFilteredBtn) {
+            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
+        }
+    }
+
     async guardarEgresado(event) {
         event.preventDefault();
 
@@ -187,8 +298,9 @@ class ControlEgresados {
             errores.push('El nombre debe tener al menos 2 caracteres');
         }
 
-        if (!cedula || !/^\d+$/.test(cedula)) {
-            errores.push('La cédula debe contener solo números');
+        // VALIDACIÓN DE CÉDULA (EXACTAMENTE 8 NÚMEROS)
+        if (!cedula || !/^\d{8}$/.test(cedula)) {
+            errores.push('La matrícula debe tener exactamente 8 números');
         }
 
         if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
@@ -282,81 +394,6 @@ class ControlEgresados {
         this.currentEditId = null;
     }
 
-    mostrarModalEliminar(id) {
-        this.egresadoIdToDelete = id;
-        const modal = document.getElementById('delete-modal');
-        if (modal) {
-            modal.style.display = 'flex';
-            // Configurar los botones del modal CADA VEZ que se muestra
-            this.configurarModalEliminar();
-        }
-    }
-
-    configurarModalEliminar() {
-        // Configurar el botón de confirmar eliminar
-        const confirmDelete = document.getElementById('confirm-delete');
-        if (confirmDelete) {
-            // Primero remover cualquier event listener existente
-            const newConfirmDelete = confirmDelete.cloneNode(true);
-            confirmDelete.parentNode.replaceChild(newConfirmDelete, confirmDelete);
-            
-            // Agregar el event listener
-            newConfirmDelete.addEventListener('click', () => {
-                this.eliminarEgresado();
-            });
-        }
-
-        // Configurar el botón de cancelar eliminar
-        const cancelDelete = document.getElementById('cancel-delete');
-        if (cancelDelete) {
-            // Primero remover cualquier event listener existente
-            const newCancelDelete = cancelDelete.cloneNode(true);
-            cancelDelete.parentNode.replaceChild(newCancelDelete, cancelDelete);
-            
-            // Agregar el event listener
-            newCancelDelete.addEventListener('click', () => {
-                this.ocultarModalEliminar();
-            });
-        }
-    }
-
-    async eliminarEgresado() {
-        if (!this.egresadoIdToDelete) return;
-
-        try {
-            this.mostrarLoading(true);
-
-            const response = await fetch(
-                `${this.API_URL}/${this.egresadoIdToDelete}`,
-                { method: 'DELETE' }
-            );
-
-            if (!response.ok) {
-                const errorText = await response.text();
-                console.error('Error en respuesta:', response.status, errorText);
-                throw new Error(`No se pudo eliminar: ${response.status} ${errorText}`);
-            }
-
-            this.mostrarNotificacion('Egresado eliminado correctamente', 'success');
-            this.cargarEgresados();
-
-        } catch (error) {
-            console.error('Error eliminando egresado:', error);
-            this.mostrarNotificacion('Error al eliminar egresado: ' + error.message, 'error');
-        } finally {
-            this.ocultarModalEliminar();
-            this.mostrarLoading(false);
-        }
-    }
-
-    ocultarModalEliminar() {
-        this.egresadoIdToDelete = null;
-        const modal = document.getElementById('delete-modal');
-        if (modal) {
-            modal.style.display = 'none';
-        }
-    }
-
     actualizarEstadisticas(total) {
         const stats = document.getElementById('total-egresados');
         if (stats) {
@@ -398,12 +435,12 @@ class ControlEgresados {
             filas.forEach(fila => {
                 fila.style.display = '';
             });
-            // Ocultar botón de exportar filtrados
+            
             const exportFilteredBtn = document.getElementById('export-filtered-btn');
             if (exportFilteredBtn) {
                 exportFilteredBtn.style.display = 'none';
             }
-            // Restaurar contador total
+            
             this.actualizarEstadisticas(this.allEgresados.length);
             return;
         }
@@ -415,7 +452,6 @@ class ControlEgresados {
                 fila.style.display = '';
                 encontrados++;
 
-                // Guardar datos del egresado filtrado
                 const id = fila.getAttribute('data-id');
                 const celdas = fila.querySelectorAll('td');
                 if (celdas.length >= 4) {
@@ -429,7 +465,6 @@ class ControlEgresados {
             }
         });
 
-        // Mostrar/ocultar botón de exportar filtrados
         const exportFilteredBtn = document.getElementById('export-filtered-btn');
         if (exportFilteredBtn) {
             if (encontrados > 0) {
@@ -440,16 +475,13 @@ class ControlEgresados {
             }
         }
 
-        // Actualizar contador de búsqueda
         const stats = document.getElementById('total-egresados');
         if (stats && busqueda) {
             stats.textContent = `Encontrados: ${encontrados} de ${this.allEgresados.length}`;
         }
     }
 
-    // ===== MÉTODOS DE EXPORTACIÓN =====
-
-    // 1. Exportar TODOS los egresados (CSV)
+    // Métodos de exportación
     async exportarTodosCSV() {
         try {
             this.mostrarLoading(true);
@@ -459,8 +491,7 @@ class ControlEgresados {
                 return;
             }
 
-            // Crear CSV
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
 
             this.allEgresados.forEach(egresado => {
                 csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
@@ -468,7 +499,6 @@ class ControlEgresados {
                 csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
             });
 
-            // Descargar archivo
             this.descargarCSV(csv, 'todos_egresados');
             this.mostrarNotificacion(`${this.allEgresados.length} egresados exportados correctamente`, 'success');
 
@@ -480,7 +510,6 @@ class ControlEgresados {
         }
     }
 
-    // 2. Exportar solo los egresados FILTRADOS (CSV)
     async exportarFiltradosCSV() {
         if (this.filteredEgresados.length === 0) {
             this.mostrarNotificacion('No hay egresados filtrados para exportar', 'warning');
@@ -490,8 +519,7 @@ class ControlEgresados {
         try {
             this.mostrarLoading(true);
 
-            // Crear CSV con datos filtrados
-            let csv = 'Nombre,Apellido,Cédula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
 
             this.filteredEgresados.forEach(egresado => {
                 csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
@@ -499,7 +527,6 @@ class ControlEgresados {
                 csv += `"${new Date(egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
             });
 
-            // Descargar archivo
             const termino = this.lastSearchTerm.replace(/[^a-z0-9]/gi, '_').substring(0, 20);
             this.descargarCSV(csv, `filtrados_${termino || 'busqueda'}`);
             this.mostrarNotificacion(`${this.filteredEgresados.length} egresados filtrados exportados`, 'success');
@@ -524,60 +551,12 @@ class ControlEgresados {
         URL.revokeObjectURL(url);
     }
 
-    setupEventListeners() {
-        // Formulario
-        const form = document.getElementById('egresado-form');
-        if (form) {
-            form.addEventListener('submit', (e) => this.guardarEgresado(e));
-        }
-
-        // Botón cancelar
-        const cancelBtn = document.getElementById('cancel-btn');
-        if (cancelBtn) {
-            cancelBtn.addEventListener('click', () => this.cancelarEdicion());
-        }
-
-        // Búsqueda
-        const searchInput = document.getElementById('search-input');
-        if (searchInput) {
-            searchInput.addEventListener('input', (e) => this.buscarEgresados(e.target.value));
-        }
-
-        // Cerrar modal haciendo clic fuera
-        const deleteModal = document.getElementById('delete-modal');
-        if (deleteModal) {
-            deleteModal.addEventListener('click', (e) => {
-                if (e.target.id === 'delete-modal') {
-                    this.ocultarModalEliminar();
-                }
-            });
-        }
-
-        // Botón exportar TODOS
-        const exportAllBtn = document.getElementById('export-all-btn');
-        if (exportAllBtn) {
-            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
-        } else {
-            // Si no existe el botón específico, usar el genérico
-            const exportBtn = document.getElementById('export-btn');
-            if (exportBtn) {
-                exportBtn.addEventListener('click', () => this.exportarTodosCSV());
-            }
-        }
-
-        // Botón exportar FILTRADOS
-        const exportFilteredBtn = document.getElementById('export-filtered-btn');
-        if (exportFilteredBtn) {
-            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
-        }
-    }
-
     cargarDatosEjemplo() {
         const datosEjemplo = {
             nombre: 'Juan',
             apellido: 'Pérez',
             cedula: '12345678',
-            carrera: 'Ingeniería de Sistemas',
+            carrera: 'Ingeniería en Sistemas Computacionales',
             anoGraduacion: 2020,
             correo: 'juan.perez@email.com',
             telefono: '3001234567',
@@ -600,21 +579,18 @@ class ControlEgresados {
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ControlEgresados();
 
-    // Si no existen los botones específicos de exportación, crearlos
+    // Crear botones de exportación si no existen
     const stats = document.querySelector('.stats');
     if (stats && !document.getElementById('export-all-btn')) {
-        // Crear contenedor de botones de exportación
         const exportButtons = document.createElement('div');
         exportButtons.className = 'export-buttons';
 
-        // Botón exportar todos
         const exportAllBtn = document.createElement('button');
         exportAllBtn.id = 'export-all-btn';
         exportAllBtn.className = 'btn btn-primary';
         exportAllBtn.innerHTML = '<i class="fas fa-download"></i> Exportar Todos (CSV)';
         exportAllBtn.onclick = () => window.app.exportarTodosCSV();
 
-        // Botón exportar filtrados (inicialmente oculto)
         const exportFilteredBtn = document.createElement('button');
         exportFilteredBtn.id = 'export-filtered-btn';
         exportFilteredBtn.className = 'btn btn-secondary';
@@ -625,7 +601,6 @@ document.addEventListener('DOMContentLoaded', () => {
         exportButtons.appendChild(exportAllBtn);
         exportButtons.appendChild(exportFilteredBtn);
 
-        // Reemplazar el botón simple si existe
         const oldExportBtn = document.getElementById('export-btn');
         if (oldExportBtn) {
             oldExportBtn.replaceWith(exportButtons);

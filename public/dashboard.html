@@ -697,20 +697,6 @@
         updateDateTime();
         setInterval(updateDateTime, 60000);
 
-        // Asegurar que el modal esté oculto
-        const modal = document.getElementById("delete-modal");
-        if (modal) {
-          modal.style.display = "none";
-          modal.classList.remove("active");
-        }
-
-        // Remover cualquier clase 'active' que pueda tener
-        setTimeout(() => {
-          if (modal && modal.classList.contains("active")) {
-            modal.classList.remove("active");
-            modal.style.display = "none";
-          }
-        }, 100);
 
         // Configurar botón de ejemplo solo en desarrollo
         if (
