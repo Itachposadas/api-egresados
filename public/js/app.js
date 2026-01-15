@@ -1,8 +1,9 @@
 class ControlEgresados {
     constructor() {
+        // Ajusta esta URL según tu backend en Render
         this.API_URL = window.location.hostname === 'localhost' 
             ? 'http://localhost:5000/api/egresados' 
-            : '/api/egresados';
+            : 'https://tu-backend-en-render.onrender.com/api/egresados'; // CAMBIA ESTO
         
         this.egresadoIdToDelete = null;
         this.currentEditId = null;
@@ -14,9 +15,7 @@ class ControlEgresados {
     }
     
     init() {
-        // Asegurar que el modal esté oculto al inicio
         this.ocultarModalEliminar();
-        
         this.cargarEgresados();
         this.setupEventListeners();
     }
@@ -31,7 +30,15 @@ class ControlEgresados {
             }
             
             const data = await response.json();
-            this.allEgresados = data.egresados || data; // Compatible con ambas respuestas
+            
+            // Manejar diferentes formatos de respuesta
+            if (data.egresados) {
+                this.allEgresados = data.egresados; // Formato con paginación
+            } else if (Array.isArray(data)) {
+                this.allEgresados = data; // Formato simple array
+            } else {
+                this.allEgresados = [];
+            }
             
             this.renderizarEgresados(this.allEgresados);
             this.actualizarEstadisticas(this.allEgresados.length);
@@ -56,31 +63,46 @@ class ControlEgresados {
         
         if (noData) noData.style.display = 'none';
         
-        tbody.innerHTML = egresados.map(egresado => `
-            <tr data-id="${egresado.id || egresado._id}">
-                <td>${egresado.matricula || ''}</td>
-                <td>${egresado.nombre_completo || egresado.nombreCompleto || ''}</td>
-                <td>${egresado.carrera || ''}</td>
-                <td>${egresado.generacion || ''}</td>
-                <td>
-                    <span class="estatus-badge estatus-${(egresado.estatus || '').toLowerCase().replace(' ', '-')}">
-                        ${egresado.estatus || ''}
-                    </span>
-                </td>
-                <td>
-                    <div class="action-buttons">
-                        <button class="btn btn-sm btn-edit" data-id="${egresado.id || egresado._id}">
-                            <i class="fas fa-edit"></i> Editar
-                        </button>
-                        <button class="btn btn-sm btn-delete" data-id="${egresado.id || egresado._id}">
-                            <i class="fas fa-trash"></i> Eliminar
-                        </button>
-                    </div>
-                </td>
-            </tr>
-        `).join('');
+        tbody.innerHTML = egresados.map(egresado => {
+            // Manejar diferentes nombres de campos
+            const id = egresado.id || egresado._id;
+            const matricula = egresado.matricula || '';
+            const nombreCompleto = egresado.nombre_completo || egresado.nombreCompleto || '';
+            const carrera = egresado.carrera || '';
+            const generacion = egresado.generacion || '';
+            const estatus = egresado.estatus || '';
+            
+            // Crear clase para el badge de estatus
+            let estatusClass = 'sin-estatus';
+            if (estatus) {
+                estatusClass = estatus.toLowerCase().replace(/\s+/g, '-');
+            }
+            
+            return `
+                <tr data-id="${id}">
+                    <td>${matricula}</td>
+                    <td>${nombreCompleto}</td>
+                    <td>${carrera}</td>
+                    <td>${generacion}</td>
+                    <td>
+                        <span class="estatus-badge estatus-${estatusClass}">
+                            ${estatus}
+                        </span>
+                    </td>
+                    <td>
+                        <div class="action-buttons">
+                            <button class="btn btn-sm btn-edit" data-id="${id}">
+                                <i class="fas fa-edit"></i> Editar
+                            </button>
+                            <button class="btn btn-sm btn-delete" data-id="${id}">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </td>
+                </tr>
+            `;
+        }).join('');
         
-        // Agregar event listeners a los botones recién creados
         this.agregarEventListenersTabla();
     }
     
@@ -112,6 +134,7 @@ class ControlEgresados {
             return;
         }
         
+        // Preparar datos con los NUEVOS campos
         const formData = {
             matricula: document.getElementById('matricula').value.trim(),
             nombreCompleto: document.getElementById('nombreCompleto').value.trim(),
@@ -126,12 +149,10 @@ class ControlEgresados {
         
         try {
             let response;
-            let url;
             
             if (this.currentEditId) {
                 // Actualizar
-                url = `${this.API_URL}/${this.currentEditId}`;
-                response = await fetch(url, {
+                response = await fetch(`${this.API_URL}/${this.currentEditId}`, {
                     method: 'PUT',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -139,17 +160,9 @@ class ControlEgresados {
                     },
                     body: JSON.stringify(formData)
                 });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || errorData.message || 'Error al actualizar');
-                }
-                
-                this.mostrarNotificacion('Egresado actualizado correctamente', 'success');
             } else {
                 // Crear nuevo
-                url = this.API_URL;
-                response = await fetch(url, {
+                response = await fetch(this.API_URL, {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -157,21 +170,26 @@ class ControlEgresados {
                     },
                     body: JSON.stringify(formData)
                 });
-                
-                if (!response.ok) {
-                    const errorData = await response.json();
-                    throw new Error(errorData.error || errorData.message || 'Error al crear');
-                }
-                
-                this.mostrarNotificacion('Egresado agregado correctamente', 'success');
             }
             
+            const result = await response.json();
+            
+            if (!response.ok) {
+                throw new Error(result.error || result.message || 'Error en la operación');
+            }
+            
+            // Mensaje de éxito
+            const mensaje = this.currentEditId 
+                ? 'Egresado actualizado correctamente' 
+                : 'Egresado agregado correctamente';
+            
+            this.mostrarNotificacion(mensaje, 'success');
             this.limpiarFormulario();
             this.cargarEgresados();
             
         } catch (error) {
             console.error('Error guardando egresado:', error);
-            this.mostrarNotificacion(error.message || 'Error al guardar egresado', 'error');
+            this.mostrarNotificacion(error.message, 'error');
         }
     }
     
@@ -257,7 +275,16 @@ class ControlEgresados {
             // Llenar formulario con datos
             document.getElementById('egresado-id').value = egresado.id || egresado._id;
             document.getElementById('matricula').value = egresado.matricula || '';
-            document.getElementById('nombreCompleto').value = egresado.nombre_completo || egresado.nombreCompleto || '';
+            
+            // Manejar diferentes nombres de campo para nombre completo
+            if (egresado.nombre_completo) {
+                document.getElementById('nombreCompleto').value = egresado.nombre_completo;
+            } else if (egresado.nombreCompleto) {
+                document.getElementById('nombreCompleto').value = egresado.nombreCompleto;
+            } else if (egresado.nombre && egresado.apellido) {
+                document.getElementById('nombreCompleto').value = `${egresado.nombre} ${egresado.apellido}`;
+            }
+            
             document.getElementById('carrera').value = egresado.carrera || '';
             document.getElementById('generacion').value = egresado.generacion || '';
             document.getElementById('estatus').value = egresado.estatus || '';
@@ -375,15 +402,13 @@ class ControlEgresados {
     }
     
     mostrarNotificacion(mensaje, tipo) {
-        const notification = document.getElementById('notification');
+        // Buscar o crear elemento de notificación
+        let notification = document.getElementById('notification');
+        
         if (!notification) {
-            console.error('No se encontró el elemento de notificación');
-            // Crear notificación si no existe
-            const newNotification = document.createElement('div');
-            newNotification.id = 'notification';
-            newNotification.className = `notification ${tipo}`;
-            newNotification.textContent = mensaje;
-            newNotification.style.cssText = `
+            notification = document.createElement('div');
+            notification.id = 'notification';
+            notification.style.cssText = `
                 position: fixed;
                 top: 20px;
                 right: 20px;
@@ -392,29 +417,15 @@ class ControlEgresados {
                 color: white;
                 font-weight: 500;
                 z-index: 3000;
+                display: none;
                 animation: slideIn 0.3s ease;
                 max-width: 350px;
                 box-shadow: 0 4px 12px rgba(0,0,0,0.15);
             `;
-            
-            if (tipo === 'success') {
-                newNotification.style.background = 'linear-gradient(135deg, #2ecc71, #27ae60)';
-                newNotification.style.borderLeft = '4px solid #219653';
-            } else if (tipo === 'error') {
-                newNotification.style.background = 'linear-gradient(135deg, #e74c3c, #c0392b)';
-                newNotification.style.borderLeft = '4px solid #d63031';
-            } else {
-                newNotification.style.background = 'linear-gradient(135deg, #3498db, #2980b9)';
-                newNotification.style.borderLeft = '4px solid #0984e3';
-            }
-            
-            document.body.appendChild(newNotification);
-            notification = newNotification;
+            document.body.appendChild(notification);
         }
         
         notification.textContent = mensaje;
-        notification.className = `notification ${tipo}`;
-        notification.style.display = 'block';
         
         // Estilos según tipo
         if (tipo === 'success') {
@@ -428,6 +439,8 @@ class ControlEgresados {
             notification.style.borderLeft = '4px solid #0984e3';
         }
         
+        notification.style.display = 'block';
+        
         // Auto-ocultar después de 3 segundos
         setTimeout(() => {
             notification.style.display = 'none';
@@ -437,7 +450,6 @@ class ControlEgresados {
     buscarEgresados(termino) {
         const busqueda = termino.toLowerCase().trim();
         this.lastSearchTerm = busqueda;
-        this.filteredEgresados = [];
         
         if (!busqueda) {
             this.renderizarEgresados(this.allEgresados);
@@ -447,13 +459,20 @@ class ControlEgresados {
         
         // Filtrar los egresados
         const resultados = this.allEgresados.filter(egresado => {
+            const matricula = egresado.matricula || '';
+            const nombreCompleto = egresado.nombre_completo || egresado.nombreCompleto || '';
+            const carrera = egresado.carrera || '';
+            const generacion = egresado.generacion || '';
+            const estatus = egresado.estatus || '';
+            const correo = egresado.correo || '';
+            
             const textoBusqueda = `
-                ${egresado.matricula || ''}
-                ${egresado.nombre_completo || egresado.nombreCompleto || ''}
-                ${egresado.carrera || ''}
-                ${egresado.generacion || ''}
-                ${egresado.estatus || ''}
-                ${egresado.correo || ''}
+                ${matricula}
+                ${nombreCompleto}
+                ${carrera}
+                ${generacion}
+                ${estatus}
+                ${correo}
             `.toLowerCase();
             
             return textoBusqueda.includes(busqueda);
@@ -467,85 +486,6 @@ class ControlEgresados {
         if (stats && busqueda) {
             stats.textContent = `Encontrados: ${resultados.length} de ${this.allEgresados.length}`;
         }
-    }
-    
-    // ===== MÉTODOS DE EXPORTACIÓN =====
-    
-    // 1. Exportar TODOS los egresados (CSV)
-    async exportarTodosCSV() {
-        try {
-            this.mostrarLoading(true);
-            
-            if (!this.allEgresados || this.allEgresados.length === 0) {
-                this.mostrarNotificacion('No hay datos para exportar', 'error');
-                return;
-            }
-            
-            // Crear CSV con nuevos campos
-            let csv = 'Matrícula,Nombre Completo,Carrera,Generación,Estatus,Domicilio,Género,Teléfono,Correo,Fecha Registro\n';
-            
-            this.allEgresados.forEach(egresado => {
-                csv += `"${egresado.matricula || ''}","${egresado.nombre_completo || egresado.nombreCompleto || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.generacion || ''}","${egresado.estatus || ''}","${egresado.domicilio || ''}","${egresado.genero || ''}",`;
-                csv += `"${egresado.telefono || ''}","${egresado.correo || ''}",`;
-                csv += `"${new Date(egresado.fecha_registro || egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
-            });
-            
-            // Descargar archivo
-            this.descargarCSV(csv, 'todos_egresados');
-            this.mostrarNotificacion(`${this.allEgresados.length} egresados exportados correctamente`, 'success');
-            
-        } catch (error) {
-            console.error('Error exportando datos:', error);
-            this.mostrarNotificacion('Error al exportar datos', 'error');
-        } finally {
-            this.mostrarLoading(false);
-        }
-    }
-    
-    // 2. Exportar solo los egresados FILTRADOS (CSV)
-    async exportarFiltradosCSV() {
-        if (this.filteredEgresados.length === 0) {
-            this.mostrarNotificacion('No hay egresados filtrados para exportar', 'warning');
-            return;
-        }
-        
-        try {
-            this.mostrarLoading(true);
-            
-            // Crear CSV con datos filtrados
-            let csv = 'Matrícula,Nombre Completo,Carrera,Generación,Estatus,Domicilio,Género,Teléfono,Correo,Fecha Registro\n';
-            
-            this.filteredEgresados.forEach(egresado => {
-                csv += `"${egresado.matricula || ''}","${egresado.nombre_completo || egresado.nombreCompleto || ''}","${egresado.carrera || ''}",`;
-                csv += `"${egresado.generacion || ''}","${egresado.estatus || ''}","${egresado.domicilio || ''}","${egresado.genero || ''}",`;
-                csv += `"${egresado.telefono || ''}","${egresado.correo || ''}",`;
-                csv += `"${new Date(egresado.fecha_registro || egresado.fechaCreacion || egresado.createdAt).toLocaleDateString('es-ES')}"\n`;
-            });
-            
-            // Descargar archivo
-            const termino = this.lastSearchTerm.replace(/[^a-z0-9]/gi, '_').substring(0, 20);
-            this.descargarCSV(csv, `filtrados_${termino || 'busqueda'}`);
-            this.mostrarNotificacion(`${this.filteredEgresados.length} egresados filtrados exportados`, 'success');
-            
-        } catch (error) {
-            console.error('Error exportando filtrados:', error);
-            this.mostrarNotificacion('Error al exportar filtrados', 'error');
-        } finally {
-            this.mostrarLoading(false);
-        }
-    }
-    
-    descargarCSV(csv, nombreBase) {
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.setAttribute('download', `${nombreBase}_${new Date().toISOString().split('T')[0]}.csv`);
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
     }
     
     setupEventListeners() {
@@ -586,18 +526,6 @@ class ControlEgresados {
                     this.ocultarModalEliminar();
                 }
             });
-        }
-        
-        // Botón exportar TODOS
-        const exportAllBtn = document.getElementById('export-all-btn');
-        if (exportAllBtn) {
-            exportAllBtn.addEventListener('click', () => this.exportarTodosCSV());
-        }
-        
-        // Botón exportar FILTRADOS
-        const exportFilteredBtn = document.getElementById('export-filtered-btn');
-        if (exportFilteredBtn) {
-            exportFilteredBtn.addEventListener('click', () => this.exportarFiltradosCSV());
         }
     }
     
