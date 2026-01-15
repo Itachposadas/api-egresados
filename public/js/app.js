@@ -519,7 +519,7 @@ class ControlEgresados {
         try {
             this.mostrarLoading(true);
 
-            let csv = 'Nombre,Apellido,Matrícula,Carrera,Año Graduación,Correo,Teléfono,Empresa,Puesto,Fecha Registro\n';
+            let csv = 'Nombre,Apellido,Matricula,Carrera,Generacion,Correo,Telefono,Estatus,Genero,Fecha Registro\n';
 
             this.filteredEgresados.forEach(egresado => {
                 csv += `"${egresado.nombre || ''}","${egresado.apellido || ''}","${egresado.cedula || ''}","${egresado.carrera || ''}",`;
