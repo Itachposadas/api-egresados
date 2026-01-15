@@ -461,6 +461,12 @@
                   <label for="empresaActual"
                     ><i class="fas fa-building"></i> Empresa Actual</label
                   >
+                  <select id="empresaActual" required>
+                    <option value="">Seleccionar estatus</option>
+                    <option value="Egresado">Egresado</option>
+                    <option value="En seguimiento">En seguimiento</option>
+                    <option value="Titulado">Titulado</option>
+                  </select>
                   <input type="text" id="empresaActual" />
                 </div>
 
@@ -696,7 +702,6 @@
         // Actualizar fecha y hora cada minuto
         updateDateTime();
         setInterval(updateDateTime, 60000);
-
 
         // Configurar botón de ejemplo solo en desarrollo
         if (
