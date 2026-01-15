@@ -1,9 +1,7 @@
 class ControlEgresados {
     constructor() {
-        // Ajusta esta URL según tu backend en Render
-        this.API_URL = window.location.hostname === 'localhost' 
-            ? 'http://localhost:5000/api/egresados' 
-            : 'https://api-egresados.onrender.com'; // CAMBIA ESTO
+        // Ajusta esta URL a tu backend REAL
+        this.API_URL = 'https://api-egresados.onrender.com'; // REEMPLAZA ESTO
         
         this.egresadoIdToDelete = null;
         this.currentEditId = null;
@@ -16,27 +14,34 @@ class ControlEgresados {
     
     init() {
         this.ocultarModalEliminar();
-        this.cargarEgresados();
         this.setupEventListeners();
+        this.cargarEgresados();
     }
     
     async cargarEgresados() {
         try {
             this.mostrarLoading(true);
+            console.log('Cargando egresados desde:', this.API_URL);
+            
             const response = await fetch(this.API_URL);
+            console.log('Respuesta HTTP:', response.status, response.statusText);
             
             if (!response.ok) {
-                throw new Error(`Error HTTP: ${response.status}`);
+                throw new Error(`Error HTTP: ${response.status} - ${response.statusText}`);
             }
             
             const data = await response.json();
+            console.log('Datos recibidos:', data);
             
             // Manejar diferentes formatos de respuesta
-            if (data.egresados) {
-                this.allEgresados = data.egresados; // Formato con paginación
+            if (data.egresados && Array.isArray(data.egresados)) {
+                this.allEgresados = data.egresados;
+                console.log('Egresados cargados (formato con paginación):', this.allEgresados.length);
             } else if (Array.isArray(data)) {
-                this.allEgresados = data; // Formato simple array
+                this.allEgresados = data;
+                console.log('Egresados cargados (formato array simple):', this.allEgresados.length);
             } else {
+                console.error('Formato de respuesta no válido:', data);
                 this.allEgresados = [];
             }
             
@@ -55,6 +60,8 @@ class ControlEgresados {
         const tbody = document.getElementById('egresados-body');
         const noData = document.getElementById('no-data');
         
+        console.log('Renderizando egresados:', egresados);
+        
         if (!egresados || egresados.length === 0) {
             tbody.innerHTML = '';
             if (noData) noData.style.display = 'block';
@@ -64,19 +71,24 @@ class ControlEgresados {
         if (noData) noData.style.display = 'none';
         
         tbody.innerHTML = egresados.map(egresado => {
-            // Manejar diferentes nombres de campos
-            const id = egresado.id || egresado._id;
+            console.log('Procesando egresado:', egresado);
+            
+            // Manejar campos con valores por defecto para evitar undefined
+            const id = egresado.id || egresado._id || '';
             const matricula = egresado.matricula || '';
-            const nombreCompleto = egresado.nombre_completo || egresado.nombreCompleto || '';
+            const nombreCompleto = egresado.nombre_completo || egresado.nombreCompleto || egresado.nombre || '';
             const carrera = egresado.carrera || '';
             const generacion = egresado.generacion || '';
-            const estatus = egresado.estatus || '';
+            const estatus = egresado.estatus || 'Sin estatus'; // Valor por defecto
             
-            // Crear clase para el badge de estatus
+            // Crear clase CSS segura para el estatus
             let estatusClass = 'sin-estatus';
-            if (estatus) {
-                estatusClass = estatus.toLowerCase().replace(/\s+/g, '-');
+            if (estatus && estatus !== 'Sin estatus') {
+                // Usar toLowerCase solo si estatus no es undefined/null
+                estatusClass = String(estatus).toLowerCase().replace(/\s+/g, '-');
             }
+            
+            console.log(`Egresado ${id}:`, { matricula, nombreCompleto, estatus, estatusClass });
             
             return `
                 <tr data-id="${id}">
@@ -126,15 +138,17 @@ class ControlEgresados {
     
     async guardarEgresado(event) {
         event.preventDefault();
+        console.log('Guardando egresado...');
         
         // Validaciones básicas
         const errores = this.validarFormulario();
         if (errores.length > 0) {
+            console.log('Errores de validación:', errores);
             this.mostrarNotificacion(errores[0], 'error');
             return;
         }
         
-        // Preparar datos con los NUEVOS campos
+        // Preparar datos
         const formData = {
             matricula: document.getElementById('matricula').value.trim(),
             nombreCompleto: document.getElementById('nombreCompleto').value.trim(),
@@ -147,32 +161,33 @@ class ControlEgresados {
             correo: document.getElementById('correo').value.trim()
         };
         
+        console.log('Datos a enviar:', formData);
+        
         try {
-            let response;
+            let url = this.API_URL;
+            let method = 'POST';
             
             if (this.currentEditId) {
-                // Actualizar
-                response = await fetch(`${this.API_URL}/${this.currentEditId}`, {
-                    method: 'PUT',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
+                url = `${this.API_URL}/${this.currentEditId}`;
+                method = 'PUT';
+                console.log('Actualizando egresado ID:', this.currentEditId);
             } else {
-                // Crear nuevo
-                response = await fetch(this.API_URL, {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'Accept': 'application/json'
-                    },
-                    body: JSON.stringify(formData)
-                });
+                console.log('Creando nuevo egresado');
             }
             
+            const response = await fetch(url, {
+                method: method,
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'Accept': 'application/json'
+                },
+                body: JSON.stringify(formData)
+            });
+            
+            console.log('Respuesta del servidor:', response.status, response.statusText);
+            
             const result = await response.json();
+            console.log('Resultado:', result);
             
             if (!response.ok) {
                 throw new Error(result.error || result.message || 'Error en la operación');
@@ -183,6 +198,7 @@ class ControlEgresados {
                 ? 'Egresado actualizado correctamente' 
                 : 'Egresado agregado correctamente';
             
+            console.log('Éxito:', mensaje);
             this.mostrarNotificacion(mensaje, 'success');
             this.limpiarFormulario();
             this.cargarEgresados();
@@ -206,8 +222,12 @@ class ControlEgresados {
         const genero = document.getElementById('genero').value;
         const correo = document.getElementById('correo').value.trim();
         
-        // Validar matrícula (8 dígitos numéricos)
-        if (!matricula || !/^\d{8}$/.test(matricula)) {
+        console.log('Validando formulario:', { matricula, nombreCompleto, carrera });
+        
+        // Validar matrícula
+        if (!matricula) {
+            errores.push('La matrícula es requerida');
+        } else if (!/^\d{8}$/.test(matricula)) {
             errores.push('La matrícula debe tener exactamente 8 dígitos numéricos');
         }
         
@@ -221,21 +241,11 @@ class ControlEgresados {
             errores.push('Seleccione una carrera');
         }
         
-        // Validar generación (formato AAAA-AAAA)
-        if (!generacion || !/^\d{4}-\d{4}$/.test(generacion)) {
+        // Validar generación
+        if (!generacion) {
+            errores.push('La generación es requerida');
+        } else if (!/^\d{4}-\d{4}$/.test(generacion)) {
             errores.push('La generación debe tener formato AAAA-AAAA (ej: 2014-2019)');
-        } else {
-            // Validar años razonables
-            const [inicio, fin] = generacion.split('-').map(Number);
-            const anioActual = new Date().getFullYear();
-            
-            if (inicio < 2000 || fin > anioActual + 5) {
-                errores.push(`Los años de generación deben estar entre 2000 y ${anioActual + 5}`);
-            }
-            
-            if (fin <= inicio) {
-                errores.push('El año final debe ser mayor al año inicial');
-            }
         }
         
         // Validar estatus
@@ -254,7 +264,9 @@ class ControlEgresados {
         }
         
         // Validar correo
-        if (!correo || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
+        if (!correo) {
+            errores.push('El correo electrónico es requerido');
+        } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
             errores.push('Ingrese un correo electrónico válido');
         }
         
@@ -264,26 +276,32 @@ class ControlEgresados {
     async editarEgresado(id) {
         try {
             this.mostrarLoading(true);
+            console.log('Editando egresado ID:', id);
+            
             const response = await fetch(`${this.API_URL}/${id}`);
+            console.log('Respuesta para editar:', response.status);
             
             if (!response.ok) {
                 throw new Error('Error al obtener datos');
             }
             
             const egresado = await response.json();
+            console.log('Datos del egresado:', egresado);
             
-            // Llenar formulario con datos
-            document.getElementById('egresado-id').value = egresado.id || egresado._id;
+            // Llenar formulario
+            document.getElementById('egresado-id').value = egresado.id || egresado._id || '';
             document.getElementById('matricula').value = egresado.matricula || '';
             
-            // Manejar diferentes nombres de campo para nombre completo
+            // Manejar nombre completo
+            let nombreCompleto = '';
             if (egresado.nombre_completo) {
-                document.getElementById('nombreCompleto').value = egresado.nombre_completo;
+                nombreCompleto = egresado.nombre_completo;
             } else if (egresado.nombreCompleto) {
-                document.getElementById('nombreCompleto').value = egresado.nombreCompleto;
+                nombreCompleto = egresado.nombreCompleto;
             } else if (egresado.nombre && egresado.apellido) {
-                document.getElementById('nombreCompleto').value = `${egresado.nombre} ${egresado.apellido}`;
+                nombreCompleto = `${egresado.nombre} ${egresado.apellido}`;
             }
+            document.getElementById('nombreCompleto').value = nombreCompleto;
             
             document.getElementById('carrera').value = egresado.carrera || '';
             document.getElementById('generacion').value = egresado.generacion || '';
@@ -293,7 +311,7 @@ class ControlEgresados {
             document.getElementById('telefono').value = egresado.telefono || '';
             document.getElementById('correo').value = egresado.correo || '';
             
-            // Cambiar título del formulario
+            // Cambiar título
             const formTitle = document.getElementById('form-title');
             if (formTitle) {
                 formTitle.innerHTML = '<i class="fas fa-user-edit"></i> Editar Egresado';
@@ -357,10 +375,14 @@ class ControlEgresados {
     async eliminarEgresado() {
         if (!this.egresadoIdToDelete) return;
         
+        console.log('Eliminando egresado ID:', this.egresadoIdToDelete);
+        
         try {
             const response = await fetch(`${this.API_URL}/${this.egresadoIdToDelete}`, {
                 method: 'DELETE'
             });
+            
+            console.log('Respuesta de eliminación:', response.status);
             
             if (!response.ok) {
                 const errorData = await response.json();
@@ -402,7 +424,8 @@ class ControlEgresados {
     }
     
     mostrarNotificacion(mensaje, tipo) {
-        // Buscar o crear elemento de notificación
+        console.log(`Notificación [${tipo}]:`, mensaje);
+        
         let notification = document.getElementById('notification');
         
         if (!notification) {
@@ -441,7 +464,6 @@ class ControlEgresados {
         
         notification.style.display = 'block';
         
-        // Auto-ocultar después de 3 segundos
         setTimeout(() => {
             notification.style.display = 'none';
         }, 3000);
@@ -457,10 +479,9 @@ class ControlEgresados {
             return;
         }
         
-        // Filtrar los egresados
         const resultados = this.allEgresados.filter(egresado => {
             const matricula = egresado.matricula || '';
-            const nombreCompleto = egresado.nombre_completo || egresado.nombreCompleto || '';
+            const nombreCompleto = egresado.nombre_completo || egresado.nombreCompleto || egresado.nombre || '';
             const carrera = egresado.carrera || '';
             const generacion = egresado.generacion || '';
             const estatus = egresado.estatus || '';
@@ -481,7 +502,6 @@ class ControlEgresados {
         this.filteredEgresados = resultados;
         this.renderizarEgresados(resultados);
         
-        // Actualizar contador de búsqueda
         const stats = document.getElementById('total-egresados');
         if (stats && busqueda) {
             stats.textContent = `Encontrados: ${resultados.length} de ${this.allEgresados.length}`;
@@ -527,6 +547,20 @@ class ControlEgresados {
                 }
             });
         }
+        
+        // Botón de datos de ejemplo (solo para desarrollo local)
+        if (window.location.hostname === 'localhost' || window.location.hostname.includes('127.0.0.1')) {
+            const exampleBtn = document.createElement('button');
+            exampleBtn.id = 'example-btn';
+            exampleBtn.className = 'btn btn-secondary';
+            exampleBtn.innerHTML = '<i class="fas fa-magic"></i> Datos Ejemplo';
+            exampleBtn.addEventListener('click', () => this.cargarDatosEjemplo());
+            
+            const formButtons = document.querySelector('.form-buttons');
+            if (formButtons) {
+                formButtons.appendChild(exampleBtn);
+            }
+        }
     }
     
     cargarDatosEjemplo() {
@@ -536,7 +570,7 @@ class ControlEgresados {
             carrera: 'Ingeniería en Sistemas Computacionales',
             generacion: '2019-2023',
             estatus: 'Titulado',
-            domicilio: 'Calle Principal #123, Ciudad, Estado',
+            domicilio: 'Calle Principal #123, Ciudad de México, CDMX',
             genero: 'Masculino',
             telefono: '5512345678',
             correo: 'juan.perez@email.com'
@@ -553,7 +587,7 @@ class ControlEgresados {
     }
 }
 
-// Inicializar la aplicación cuando el DOM esté listo
+// Inicializar la aplicación
 document.addEventListener('DOMContentLoaded', () => {
     window.app = new ControlEgresados();
 });
