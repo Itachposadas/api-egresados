@@ -71,7 +71,7 @@ class ControlEgresados {
             </tr>
         `).join('');
 
-        // Agregar event listeners a los botones recién creados
+        // aAgregar event listeners a los botones recién creados
         this.agregarEventListenersTabla();
     }
 
